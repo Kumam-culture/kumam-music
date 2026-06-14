@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kumam Music — Streaming Platform</title>
+  <link rel="stylesheet" href="/css/style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+</head>
+<body>
+<!-- SIDEBAR -->
+<div id="sidebar" class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon"><i class="fas fa-drum"></i></div>
+    <div class="logo-text">
+      <span class="logo-main">KUMAM</span>
+      <span class="logo-sub">MUSIC</span>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-link active" data-page="home"><i class="fas fa-home"></i><span>Home</span></a>
+    <a href="#" class="nav-link" data-page="discover"><i class="fas fa-compass"></i><span>Discover</span></a>
+    <a href="#" class="nav-link" data-page="genres"><i class="fas fa-music"></i><span>Genres</span></a>
+    <a href="#" class="nav-link" data-page="charts"><i class="fas fa-chart-bar"></i><span>Charts</span></a>
+    <div class="nav-divider"></div>
+    <a href="#" class="nav-link auth-required" data-page="library"><i class="fas fa-book-open"></i><span>My Library</span></a>
+    <a href="#" class="nav-link auth-required" data-page="liked"><i class="fas fa-heart"></i><span>Liked Songs</span></a>
+    <a href="#" class="nav-link auth-required" data-page="playlists"><i class="fas fa-list-music"></i><span>Playlists</span></a>
+    <a href="#" class="nav-link auth-required" data-page="history"><i class="fas fa-history"></i><span>History</span></a>
+    <div class="nav-divider"></div>
+    <a href="#" class="nav-link artist-only" data-page="artist-dashboard"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
+    <a href="#" class="nav-link artist-only" data-page="upload"><i class="fas fa-upload"></i><span>Upload</span></a>
+    <a href="#" class="nav-link admin-only" data-page="admin"><i class="fas fa-shield-alt"></i><span>Admin</span></a>
+  </nav>
+  <div class="sidebar-genres" id="sidebarGenres"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main-container">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
+      <div class="search-bar">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Search songs, artists, albums..."/>
+        <div id="searchDropdown" class="search-dropdown hidden"></div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div id="guestActions" class="auth-buttons">
+        <button class="btn btn-outline" id="signInBtn">Sign In</button>
+        <button class="btn btn-primary" id="signUpBtn">Sign Up</button>
+      </div>
+      <div id="userMenu" class="user-menu hidden">
+        <div class="user-avatar-wrap" id="userAvatarBtn">
+          <img id="userAvatarImg" src="/images/default-avatar.svg" alt="Avatar"/>
+          <span id="userNameDisplay"></span>
+          <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="user-dropdown hidden" id="userDropdown">
+          <a href="#" data-page="profile"><i class="fas fa-user"></i> Profile</a>
+          <a href="#" data-page="settings"><i class="fas fa-cog"></i> Settings</a>
+          <a href="#" data-page="subscription"><i class="fas fa-crown"></i> Subscription</a>
+          <div class="dropdown-divider"></div>
+          <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <main class="content" id="pageContent"></main>
+</div>
+
+<!-- MUSIC PLAYER -->
+<div class="player" id="musicPlayer">
+  <div class="player-left">
+    <div class="player-artwork" id="playerArtwork">
+      <img id="playerCover" src="/images/default-cover.svg" alt="Cover"/>
+    </div>
+    <div class="player-info">
+      <div class="player-title" id="playerTitle">No song playing</div>
+      <div class="player-artist" id="playerArtist">—</div>
+    </div>
+    <button class="player-btn like-btn" id="playerLikeBtn" title="Like"><i class="far fa-heart"></i></button>
+  </div>
+  <div class="player-center">
+    <div class="player-controls">
+      <button class="player-btn" id="shuffleBtn" title="Shuffle"><i class="fas fa-random"></i></button>
+      <button class="player-btn" id="prevBtn" title="Previous"><i class="fas fa-step-backward"></i></button>
+      <button class="player-btn play-pause" id="playPauseBtn" title="Play/Pause"><i class="fas fa-play"></i></button>
+      <button class="player-btn" id="nextBtn" title="Next"><i class="fas fa-step-forward"></i></button>
+      <button class="player-btn" id="repeatBtn" title="Repeat"><i class="fas fa-redo"></i></button>
+    </div>
+    <div class="player-progress">
+      <span id="currentTime">0:00</span>
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+        <div class="progress-thumb" id="progressThumb"></div>
+      </div>
+      <span id="totalTime">0:00</span>
+    </div>
+  </div>
+  <div class="player-right">
+    <button class="player-btn" id="queueBtn" title="Queue"><i class="fas fa-list"></i></button>
+    <button class="player-btn" id="downloadPlayerBtn" title="Download" style="display:none"><i class="fas fa-download"></i></button>
+    <div class="volume-control">
+      <button class="player-btn" id="muteBtn" title="Mute"><i class="fas fa-volume-up"></i></button>
+      <div class="volume-bar" id="volumeBar">
+        <div class="volume-fill" id="volumeFill" style="width:80%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QUEUE PANEL -->
+<div class="queue-panel hidden" id="queuePanel">
+  <div class="queue-header">
+    <h3>Queue</h3>
+    <button id="closeQueueBtn"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="queue-list" id="queueList"></div>
+</div>
+
+<!-- AUTH MODALS -->
+<div class="modal-overlay hidden" id="authOverlay">
+  <!-- Sign In Modal -->
+  <div class="modal" id="signInModal">
+    <button class="modal-close" data-close="signInModal"><i class="fas fa-times"></i></button>
+    <div class="modal-logo"><i class="fas fa-drum"></i> KUMAM MUSIC</div>
+    <h2>Sign In</h2>
+    <div id="signInError" class="alert alert-error hidden"></div>
+    <form id="signInForm">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="signinEmail" placeholder="you@example.com" required/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="password-wrap">
+          <input type="password" id="signinPassword" placeholder="••••••••" required/>
+          <i class="fas fa-eye toggle-pwd"></i>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="signInSubmit">
+        <span>Sign In</span><i class="fas fa-spinner fa-spin hidden"></i>
+      </button>
+    </form>
+    <p class="auth-switch">Don't have an account? <a href="#" id="toSignUp">Sign Up</a></p>
+  </div>
+
+  <!-- Sign Up Modal -->
+  <div class="modal hidden" id="signUpModal">
+    <button class="modal-close" data-close="signUpModal"><i class="fas fa-times"></i></button>
+    <div class="modal-logo"><i class="fas fa-drum"></i> KUMAM MUSIC</div>
+    <h2>Create Account</h2>
+    <div class="account-type-tabs">
+      <button class="tab-btn active" data-type="listener"><i class="fas fa-headphones"></i> Listener</button>
+      <button class="tab-btn" data-type="artist"><i class="fas fa-microphone"></i> Artist</button>
+    </div>
+    <div id="signUpError" class="alert alert-error hidden"></div>
+    <form id="signUpForm">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="signupName" placeholder="Your full name" required/>
+      </div>
+      <div class="form-group artist-field hidden">
+        <label>Stage Name</label>
+        <input type="text" id="signupStageName" placeholder="Your stage name"/>
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="signupEmail" placeholder="you@example.com" required/>
+      </div>
+      <div class="form-group">
+        <label>Phone Number</label>
+        <input type="tel" id="signupPhone" placeholder="0761234567"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="password-wrap">
+          <input type="password" id="signupPassword" placeholder="Min 8 characters" required/>
+          <i class="fas fa-eye toggle-pwd"></i>
+        </div>
+      </div>
+      <div class="artist-field hidden" id="artistSubscriptionNote">
+        <div class="subscription-info">
+          <i class="fas fa-info-circle"></i>
+          <div>
+            <strong>Artist Subscription: UGX 15,000/year</strong>
+            <p>You'll complete payment after registration via MTN or Airtel Mobile Money.</p>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="signUpSubmit">
+        <span>Create Account</span><i class="fas fa-spinner fa-spin hidden"></i>
+      </button>
+    </form>
+    <p class="auth-switch">Already have an account? <a href="#" id="toSignIn">Sign In</a></p>
+  </div>
+
+  <!-- Subscription Payment Modal -->
+  <div class="modal hidden" id="subscriptionModal">
+    <button class="modal-close" data-close="subscriptionModal"><i class="fas fa-times"></i></button>
+    <div class="modal-logo"><i class="fas fa-crown"></i></div>
+    <h2 id="subModalTitle">Complete Your Subscription</h2>
+    <p id="subModalDesc" class="sub-desc"></p>
+    <div id="subModalError" class="alert alert-error hidden"></div>
+    <div id="subModalSuccess" class="alert alert-success hidden"></div>
+    <form id="subscriptionForm">
+      <div class="form-group">
+        <label>Choose Plan</label>
+        <div class="plan-cards" id="planCards"></div>
+      </div>
+      <div class="form-group">
+        <label>Payment Method</label>
+        <div class="payment-methods">
+          <label class="payment-option">
+            <input type="radio" name="payment_method" value="mtn" required/>
+            <div class="payment-card mtn"><img src="/images/mtn-logo.svg" alt="MTN"/><span>MTN Mobile Money</span></div>
+          </label>
+          <label class="payment-option">
+            <input type="radio" name="payment_method" value="airtel"/>
+            <div class="payment-card airtel"><img src="/images/airtel-logo.svg" alt="Airtel"/><span>Airtel Money</span></div>
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Mobile Money Number</label>
+        <input type="tel" id="paymentPhone" placeholder="e.g. 0761234567" required/>
+        <small class="mtn-hint">MTN: 076/078/077 &nbsp;|&nbsp; Airtel: 070/071/072</small>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="paymentSubmit">
+        <span>Pay Now</span><i class="fas fa-spinner fa-spin hidden"></i>
+      </button>
+    </form>
+    <div class="payment-pending hidden" id="paymentPending">
+      <div class="pending-icon"><i class="fas fa-mobile-alt"></i></div>
+      <h3>Awaiting Payment Approval</h3>
+      <p id="pendingInstructions"></p>
+      <div class="pending-timer" id="pendingTimer">Checking... <span id="timerCount">30</span>s</div>
+      <button class="btn btn-outline" id="checkPaymentBtn">Check Payment Status</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TO PLAYLIST MODAL -->
+<div class="modal-overlay hidden" id="playlistOverlay">
+  <div class="modal small-modal" id="addToPlaylistModal">
+    <button class="modal-close" data-close-overlay="playlistOverlay"><i class="fas fa-times"></i></button>
+    <h3>Add to Playlist</h3>
+    <div id="playlistModalList" class="playlist-modal-list"></div>
+    <button class="btn btn-outline btn-full" id="createPlaylistFromModal">
+      <i class="fas fa-plus"></i> New Playlist
+    </button>
+  </div>
+</div>
+
+<!-- NOTIFICATION -->
+<div class="notification hidden" id="notification">
+  <i class="fas fa-check-circle"></i>
+  <span id="notificationMsg"></span>
+</div>
+
+<audio id="audioElement"></audio>
+<script src="/js/api.js"></script>
+<script src="/js/player.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/pages.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
