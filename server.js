@@ -33,6 +33,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/subscriptions', require('./routes/subscriptions'));
 app.use('/api/search', require('./routes/search'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Serve main SPA
 app.get('*', (req, res) => {

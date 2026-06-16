@@ -39,6 +39,13 @@ const API = (() => {
     put: (path, data, form = false) => request('PUT', path, data, form),
     delete: (path) => request('DELETE', path),
 
+    // Notifications
+    getNotifications:      ()     => request('GET',    '/notifications'),
+    dismissNotification:   (id)   => request('POST',   `/notifications/${id}/dismiss`),
+    getAdminNotifications: ()     => request('GET',    '/notifications/admin/all'),
+    createNotification:    (data) => request('POST',   '/notifications', data),
+    deleteNotification:    (id)   => request('DELETE', `/notifications/${id}`),
+
     // Auth
     login: (email, password) => request('POST', '/auth/login', { email, password }),
     register: (data) => request('POST', '/auth/register', data),

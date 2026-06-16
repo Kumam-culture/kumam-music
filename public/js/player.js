@@ -4,61 +4,82 @@ const Player = (() => {
   let currentIndex = -1;
   let isPlaying = false;
   let isShuffle = false;
-  let repeatMode = 0; // 0=off, 1=all, 2=one
+  let repeatMode = 0; // 0=off 1=all 2=one
   let volume = 0.8;
   let isMuted = false;
-  let pendingStream = null;
   let streamTimeout = null;
 
   const audio = document.getElementById('audioElement');
-  const cover = document.getElementById('playerCover');
-  const title = document.getElementById('playerTitle');
-  const artist = document.getElementById('playerArtist');
-  const playPauseBtn = document.getElementById('playPauseBtn');
-  const prevBtn = document.getElementById('prevBtn');
-  const nextBtn = document.getElementById('nextBtn');
-  const shuffleBtn = document.getElementById('shuffleBtn');
-  const repeatBtn = document.getElementById('repeatBtn');
-  const likeBtn = document.getElementById('playerLikeBtn');
-  const progressFill = document.getElementById('progressFill');
-  const progressBar = document.getElementById('progressBar');
-  const currentTimeEl = document.getElementById('currentTime');
-  const totalTimeEl = document.getElementById('totalTime');
-  const volumeFill = document.getElementById('volumeFill');
-  const volumeBar = document.getElementById('volumeBar');
-  const muteBtn = document.getElementById('muteBtn');
-  const queueList = document.getElementById('queueList');
-  const queuePanel = document.getElementById('queuePanel');
-  const downloadBtn = document.getElementById('downloadPlayerBtn');
 
-  const formatTime = (s) => {
-    if (isNaN(s)) return '0:00';
+  // ── Mini bar elements ───────────────────────────────────────
+  const cover        = document.getElementById('playerCover');
+  const titleEl      = document.getElementById('playerTitle');
+  const artistEl     = document.getElementById('playerArtist');
+  const playPauseBtn = document.getElementById('playPauseBtn');
+  const prevBtn      = document.getElementById('prevBtn');
+  const nextBtn      = document.getElementById('nextBtn');
+  const shuffleBtn   = document.getElementById('shuffleBtn');
+  const repeatBtn    = document.getElementById('repeatBtn');
+  const likeBtn      = document.getElementById('playerLikeBtn');
+  const progressFill = document.getElementById('progressFill');
+  const progressBar  = document.getElementById('progressBar');
+  const currentTimeEl= document.getElementById('currentTime');
+  const totalTimeEl  = document.getElementById('totalTime');
+  const volumeFill   = document.getElementById('volumeFill');
+  const volumeBar    = document.getElementById('volumeBar');
+  const muteBtn      = document.getElementById('muteBtn');
+  const queueList    = document.getElementById('queueList');
+  const queuePanel   = document.getElementById('queuePanel');
+  const downloadBtn  = document.getElementById('downloadPlayerBtn');
+
+  // ── Fullscreen elements ─────────────────────────────────────
+  const fsEl          = document.getElementById('playerFullscreen');
+  const fsCover       = document.getElementById('fsCover');
+  const fsTitleEl     = document.getElementById('fsTitle');
+  const fsArtistEl    = document.getElementById('fsArtist');
+  const fsArtwork     = document.getElementById('fsArtwork');
+  const fsPlayPause   = document.getElementById('fsPlayPauseBtn');
+  const fsPrevBtn     = document.getElementById('fsPrevBtn');
+  const fsNextBtn     = document.getElementById('fsNextBtn');
+  const fsShuffleBtn  = document.getElementById('fsShuffleBtn');
+  const fsRepeatBtn   = document.getElementById('fsRepeatBtn');
+  const fsLikeBtn     = document.getElementById('fsLikeBtn');
+  const fsProgressBar = document.getElementById('fsProgressBar');
+  const fsProgressFill= document.getElementById('fsProgressFill');
+  const fsCurrentTime = document.getElementById('fsCurrentTime');
+  const fsTotalTime   = document.getElementById('fsTotalTime');
+  const fsVolumeBar   = document.getElementById('fsVolumeBar');
+  const fsVolumeFill  = document.getElementById('fsVolumeFill');
+  const fsMuteBtn     = document.getElementById('fsMuteBtn');
+  const fsDownloadBtn = document.getElementById('fsDownloadBtn');
+
+  const fmt = (s) => {
+    if (!s || isNaN(s)) return '0:00';
     const m = Math.floor(s / 60);
-    return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    return `${m}:${String(Math.floor(s % 60)).padStart(2,'0')}`;
   };
 
   const getArtwork = (song) => {
-    if (song.artwork) return `/uploads/artwork/${song.artwork}`;
+    if (song.artwork)       return `/uploads/artwork/${song.artwork}`;
     if (song.album_artwork) return `/uploads/artwork/${song.album_artwork}`;
     return '/images/default-cover.svg';
   };
 
+  // ── Update both mini and fullscreen UI ──────────────────────
   const updateUI = () => {
     if (currentIndex < 0 || !queue[currentIndex]) return;
     const song = queue[currentIndex];
-    cover.src = getArtwork(song);
-    title.textContent = song.title;
-    artist.textContent = song.stage_name || song.artist_name || 'Unknown Artist';
-    document.title = `${song.title} — Kumam Music`;
-    playPauseBtn.innerHTML = isPlaying
-      ? '<i class="fas fa-pause"></i>'
-      : '<i class="fas fa-play"></i>';
+    const art  = getArtwork(song);
+    const name = song.stage_name || song.artist_name || 'Unknown Artist';
 
-    // Like button
+    // Mini bar
+    cover.src       = art;
+    titleEl.textContent  = song.title;
+    artistEl.textContent = name;
+    document.title  = `${song.title} — Kumam Music`;
+    _syncPlayBtn(playPauseBtn, isPlaying);
     likeBtn.querySelector('i').className = song.liked ? 'fas fa-heart' : 'far fa-heart';
     likeBtn.style.color = song.liked ? 'var(--accent)' : '';
-
-    // Download btn
     if (song.is_downloadable) {
       downloadBtn.style.display = 'block';
       downloadBtn.onclick = () => downloadSong(song);
@@ -66,46 +87,90 @@ const Player = (() => {
       downloadBtn.style.display = 'none';
     }
 
+    // Fullscreen
+    if (fsCover)   fsCover.src = art;
+    if (fsTitleEl) fsTitleEl.textContent  = song.title;
+    if (fsArtistEl)fsArtistEl.textContent = name;
+    if (fsLikeBtn) {
+      fsLikeBtn.querySelector('i').className = song.liked ? 'fas fa-heart' : 'far fa-heart';
+      fsLikeBtn.classList.toggle('liked', !!song.liked);
+    }
+    if (fsDownloadBtn) {
+      fsDownloadBtn.style.display = song.is_downloadable ? 'block' : 'none';
+      if (song.is_downloadable) fsDownloadBtn.onclick = () => downloadSong(song);
+    }
+    _syncPlayBtn(fsPlayPause, isPlaying);
+    if (fsArtwork) fsArtwork.classList.toggle('playing', isPlaying);
+
     renderQueue();
     highlightPlayingRow();
   };
 
-  const highlightPlayingRow = () => {
-    document.querySelectorAll('.song-row').forEach(r => r.classList.remove('playing'));
-    if (currentIndex < 0) return;
-    const song = queue[currentIndex];
-    const rows = document.querySelectorAll(`.song-row[data-uuid="${song.uuid}"]`);
-    rows.forEach(r => r.classList.add('playing'));
+  const _syncPlayBtn = (btn, playing) => {
+    if (!btn) return;
+    btn.querySelector('i').className = playing ? 'fas fa-pause' : 'fas fa-play';
   };
 
-  const play = async (song, queueSongs = null) => {
-    if (queueSongs) queue = [...queueSongs];
-    const idx = queue.findIndex(s => s.uuid === song.uuid);
-    currentIndex = idx >= 0 ? idx : 0;
-    if (idx < 0) queue.unshift(song);
+  const highlightPlayingRow = () => {
+    document.querySelectorAll('.song-row').forEach(r => r.classList.remove('playing'));
+    if (currentIndex < 0 || !queue[currentIndex]) return;
+    document.querySelectorAll(`.song-row[data-uuid="${queue[currentIndex].uuid}"]`)
+      .forEach(r => r.classList.add('playing'));
+  };
 
-    const src = `/uploads/songs/${song.file_path}`;
-    if (audio.src !== window.location.origin + src) {
-      audio.src = src;
-      audio.load();
+  // ── Core play function ──────────────────────────────────────
+  // FIX: always force-load when song changes; await canplaythrough before play
+  const play = async (song, queueSongs = null) => {
+    if (queueSongs && queueSongs.length) {
+      queue = [...queueSongs];
+    } else if (!queue.length) {
+      queue = [song];
     }
+
+    const idx = queue.findIndex(s => s.uuid === song.uuid);
+    if (idx >= 0) {
+      currentIndex = idx;
+    } else {
+      queue.unshift(song);
+      currentIndex = 0;
+    }
+
+    const newSrc = `/uploads/songs/${song.file_path}`;
+    // Always set src and reload — fixes queue/history not playing
+    audio.src = newSrc;
+    audio.load();
+
+    updateUI();
+    recordStream(song);
 
     try {
       await audio.play();
       isPlaying = true;
     } catch (e) {
-      console.warn('Autoplay blocked:', e);
+      // Autoplay blocked — wait for user interaction
+      console.warn('Autoplay blocked, waiting for interaction');
+      isPlaying = false;
     }
-
-    updateUI();
-    recordStream(song);
+    _syncPlayBtn(playPauseBtn, isPlaying);
+    _syncPlayBtn(fsPlayPause, isPlaying);
+    if (fsArtwork) fsArtwork.classList.toggle('playing', isPlaying);
   };
 
-  const recordStream = (song) => {
-    clearTimeout(streamTimeout);
-    streamTimeout = setTimeout(async () => {
-      try { await API.streamSong(song.uuid); } catch (e) {}
-    }, 30000); // count after 30s
+  const playByIndex = async (idx) => {
+    if (!queue[idx]) return;
+    currentIndex = idx;
+    const song = queue[idx];
+    audio.src = `/uploads/songs/${song.file_path}`;
+    audio.load();
+    updateUI();
+    recordStream(song);
+    try {
+      await audio.play();
+      isPlaying = true;
+    } catch (e) { isPlaying = false; }
+    _syncPlayBtn(playPauseBtn, isPlaying);
+    _syncPlayBtn(fsPlayPause, isPlaying);
+    if (fsArtwork) fsArtwork.classList.toggle('playing', isPlaying);
   };
 
   const toggle = async () => {
@@ -114,21 +179,18 @@ const Player = (() => {
       audio.pause();
       isPlaying = false;
     } else {
-      await audio.play();
-      isPlaying = true;
+      try { await audio.play(); isPlaying = true; } catch (e) {}
     }
-    playPauseBtn.innerHTML = isPlaying
-      ? '<i class="fas fa-pause"></i>'
-      : '<i class="fas fa-play"></i>';
+    _syncPlayBtn(playPauseBtn, isPlaying);
+    _syncPlayBtn(fsPlayPause, isPlaying);
+    if (fsArtwork) fsArtwork.classList.toggle('playing', isPlaying);
   };
 
   const next = () => {
     if (!queue.length) return;
-    if (isShuffle) {
-      currentIndex = Math.floor(Math.random() * queue.length);
-    } else {
-      currentIndex = (currentIndex + 1) % queue.length;
-    }
+    currentIndex = isShuffle
+      ? Math.floor(Math.random() * queue.length)
+      : (currentIndex + 1) % queue.length;
     playByIndex(currentIndex);
   };
 
@@ -138,26 +200,24 @@ const Player = (() => {
     playByIndex(currentIndex);
   };
 
-  const playByIndex = async (idx) => {
-    currentIndex = idx;
-    const song = queue[idx];
-    if (!song) return;
-    audio.src = `/uploads/songs/${song.file_path}`;
-    audio.load();
-    try { await audio.play(); isPlaying = true; } catch (e) {}
-    updateUI();
-    recordStream(song);
-  };
-
   const setVolume = (v) => {
     volume = Math.max(0, Math.min(1, v));
     audio.volume = volume;
     isMuted = volume === 0;
-    volumeFill.style.width = `${volume * 100}%`;
-    muteBtn.querySelector('i').className =
-      volume === 0 ? 'fas fa-volume-mute'
-      : volume < 0.5 ? 'fas fa-volume-down'
-      : 'fas fa-volume-up';
+    const pct = `${volume * 100}%`;
+    volumeFill.style.width = pct;
+    if (fsVolumeFill) fsVolumeFill.style.width = pct;
+    const icon = volume === 0 ? 'mute' : volume < 0.5 ? 'down' : 'up';
+    const cls = `fas fa-volume-${icon}`;
+    muteBtn.querySelector('i').className = cls;
+    if (fsMuteBtn) fsMuteBtn.querySelector('i').className = cls;
+  };
+
+  const recordStream = (song) => {
+    clearTimeout(streamTimeout);
+    streamTimeout = setTimeout(async () => {
+      try { await API.streamSong(song.uuid); } catch (e) {}
+    }, 30000);
   };
 
   const downloadSong = async (song) => {
@@ -188,6 +248,7 @@ const Player = (() => {
   };
 
   const renderQueue = () => {
+    if (!queueList) return;
     queueList.innerHTML = queue.map((s, i) => `
       <div class="queue-item ${i === currentIndex ? 'active' : ''}" onclick="Player.jumpTo(${i})">
         <img src="${getArtwork(s)}" onerror="this.src='/images/default-cover.svg'" alt=""/>
@@ -196,61 +257,45 @@ const Player = (() => {
           <div class="queue-item-artist">${s.stage_name || s.artist_name || ''}</div>
         </div>
         ${i === currentIndex ? '<i class="fas fa-music text-accent"></i>' : ''}
-      </div>
-    `).join('');
+      </div>`).join('');
   };
 
-  // Audio events
+  // ── Audio events ─────────────────────────────────────────────
   audio.addEventListener('timeupdate', () => {
     if (!audio.duration) return;
     const pct = (audio.currentTime / audio.duration) * 100;
     progressFill.style.width = `${pct}%`;
-    currentTimeEl.textContent = formatTime(audio.currentTime);
+    currentTimeEl.textContent = fmt(audio.currentTime);
+    if (fsProgressFill) fsProgressFill.style.width = `${pct}%`;
+    if (fsCurrentTime) fsCurrentTime.textContent = fmt(audio.currentTime);
+    document.querySelector('.player')?.style.setProperty('--mini-progress', `${pct}%`);
   });
 
   audio.addEventListener('loadedmetadata', () => {
-    totalTimeEl.textContent = formatTime(audio.duration);
+    totalTimeEl.textContent = fmt(audio.duration);
+    if (fsTotalTime) fsTotalTime.textContent = fmt(audio.duration);
   });
 
   audio.addEventListener('ended', () => {
-    if (repeatMode === 2) {
-      audio.currentTime = 0;
-      audio.play();
-    } else {
-      next();
-    }
+    if (repeatMode === 2) { audio.currentTime = 0; audio.play(); }
+    else next();
   });
 
   audio.addEventListener('play', () => {
     isPlaying = true;
-    playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+    _syncPlayBtn(playPauseBtn, true);
+    _syncPlayBtn(fsPlayPause, true);
+    if (fsArtwork) fsArtwork.classList.add('playing');
   });
 
   audio.addEventListener('pause', () => {
     isPlaying = false;
-    playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+    _syncPlayBtn(playPauseBtn, false);
+    _syncPlayBtn(fsPlayPause, false);
+    if (fsArtwork) fsArtwork.classList.remove('playing');
   });
 
-  // Progress bar click
-  progressBar.addEventListener('click', (e) => {
-    if (!audio.duration) return;
-    const rect = progressBar.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
-    audio.currentTime = pct * audio.duration;
-  });
-
-  // Volume bar click
-  volumeBar.addEventListener('click', (e) => {
-    const rect = volumeBar.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
-    setVolume(pct);
-  });
-
-  muteBtn.addEventListener('click', () => {
-    if (isMuted) { setVolume(volume || 0.8); }
-    else { audio.volume = 0; isMuted = true; volumeFill.style.width = '0%'; muteBtn.querySelector('i').className = 'fas fa-volume-mute'; }
-  });
-
+  // ── Mini player controls ─────────────────────────────────────
   playPauseBtn.addEventListener('click', toggle);
   prevBtn.addEventListener('click', prev);
   nextBtn.addEventListener('click', next);
@@ -258,17 +303,22 @@ const Player = (() => {
   shuffleBtn.addEventListener('click', () => {
     isShuffle = !isShuffle;
     shuffleBtn.classList.toggle('active', isShuffle);
+    if (fsShuffleBtn) fsShuffleBtn.classList.toggle('active', isShuffle);
   });
 
   repeatBtn.addEventListener('click', () => {
     repeatMode = (repeatMode + 1) % 3;
-    repeatBtn.classList.toggle('active', repeatMode > 0);
+    const active = repeatMode > 0;
+    repeatBtn.classList.toggle('active', active);
     repeatBtn.querySelector('i').className = repeatMode === 2 ? 'fas fa-redo-alt' : 'fas fa-redo';
-    repeatBtn.title = ['Repeat Off', 'Repeat All', 'Repeat One'][repeatMode];
+    if (fsRepeatBtn) {
+      fsRepeatBtn.classList.toggle('active', active);
+      fsRepeatBtn.querySelector('i').className = repeatMode === 2 ? 'fas fa-redo-alt' : 'fas fa-redo';
+    }
   });
 
   likeBtn.addEventListener('click', async () => {
-    const user = App.getUser();
+    const user = typeof App !== 'undefined' ? App.getUser() : null;
     if (!user) return Auth.showSignIn();
     const song = queue[currentIndex];
     if (!song) return;
@@ -277,7 +327,10 @@ const Player = (() => {
       song.liked = res.liked;
       likeBtn.querySelector('i').className = res.liked ? 'fas fa-heart' : 'far fa-heart';
       likeBtn.style.color = res.liked ? 'var(--accent)' : '';
-      // Update row buttons
+      if (fsLikeBtn) {
+        fsLikeBtn.querySelector('i').className = res.liked ? 'fas fa-heart' : 'far fa-heart';
+        fsLikeBtn.classList.toggle('liked', res.liked);
+      }
       document.querySelectorAll(`.like-btn-song[data-uuid="${song.uuid}"]`).forEach(btn => {
         btn.querySelector('i').className = res.liked ? 'fas fa-heart' : 'far fa-heart';
         btn.classList.toggle('liked', res.liked);
@@ -285,183 +338,104 @@ const Player = (() => {
     } catch (e) { App.showNotification('Failed to like song', 'error'); }
   });
 
-  // Queue toggle
+  progressBar.addEventListener('click', (e) => {
+    if (!audio.duration) return;
+    const rect = progressBar.getBoundingClientRect();
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+  });
+
+  volumeBar.addEventListener('click', (e) => {
+    const rect = volumeBar.getBoundingClientRect();
+    setVolume((e.clientX - rect.left) / rect.width);
+  });
+
+  muteBtn.addEventListener('click', () => {
+    if (isMuted) { setVolume(volume > 0 ? volume : 0.8); }
+    else { setVolume(0); }
+  });
+
   document.getElementById('queueBtn').addEventListener('click', () => {
     queuePanel.classList.toggle('hidden');
     if (!queuePanel.classList.contains('hidden')) renderQueue();
   });
-
   document.getElementById('closeQueueBtn').addEventListener('click', () => {
     queuePanel.classList.add('hidden');
   });
 
-  // ── MOBILE FULL-SCREEN PLAYER ────────────────────────────
-  const fsEl         = document.getElementById('playerFullscreen');
-  const fsCover      = document.getElementById('fsCover');
-  const fsTitle      = document.getElementById('fsTitle');
-  const fsArtist     = document.getElementById('fsArtist');
-  const fsArtwork    = document.getElementById('fsArtwork');
-  const fsPlayPause  = document.getElementById('fsPlayPauseBtn');
-  const fsPrev       = document.getElementById('fsPrevBtn');
-  const fsNext       = document.getElementById('fsNextBtn');
-  const fsShuffle    = document.getElementById('fsShuffleBtn');
-  const fsRepeat     = document.getElementById('fsRepeatBtn');
-  const fsLike       = document.getElementById('fsLikeBtn');
-  const fsProgressBar= document.getElementById('fsProgressBar');
-  const fsProgressFill=document.getElementById('fsProgressFill');
-  const fsCurrentTime= document.getElementById('fsCurrentTime');
-  const fsTotalTime  = document.getElementById('fsTotalTime');
-  const fsVolumeBar  = document.getElementById('fsVolumeBar');
-  const fsVolumeFill = document.getElementById('fsVolumeFill');
-  const fsMuteBtn    = document.getElementById('fsMuteBtn');
-  const fsDownloadBtn= document.getElementById('fsDownloadBtn');
+  // ── Fullscreen controls ─────────────────────────────────────
+  const openFullscreen  = () => { if (window.innerWidth <= 768) fsEl?.classList.add('open'); };
+  const closeFullscreen = () => fsEl?.classList.remove('open');
 
-  const openFullscreen = () => {
-    if (window.innerWidth <= 768) fsEl.classList.add('open');
-  };
-  const closeFullscreen = () => fsEl.classList.remove('open');
-
-  document.getElementById('fsCloseBtn').addEventListener('click', closeFullscreen);
-  document.getElementById('playerArtwork').addEventListener('click', () => {
+  document.getElementById('fsCloseBtn')?.addEventListener('click', closeFullscreen);
+  document.getElementById('playerArtwork')?.addEventListener('click', () => {
     if (window.innerWidth <= 768 && queue.length) openFullscreen();
   });
 
-  // Sync fullscreen UI with player state
-  const syncFS = () => {
-    if (!queue[currentIndex]) return;
-    const song = queue[currentIndex];
-    fsCover.src  = getArtwork(song);
-    fsTitle.textContent  = song.title;
-    fsArtist.textContent = song.stage_name || song.artist_name || '—';
-    fsPlayPause.querySelector('i').className = isPlaying ? 'fas fa-pause' : 'fas fa-play';
-    fsLike.querySelector('i').className = song.liked ? 'fas fa-heart' : 'far fa-heart';
-    fsLike.classList.toggle('liked', !!song.liked);
-    fsArtwork.classList.toggle('playing', isPlaying);
-    if (song.is_downloadable) {
-      fsDownloadBtn.style.display = 'block';
-      fsDownloadBtn.onclick = () => downloadSong(song);
-    } else {
-      fsDownloadBtn.style.display = 'none';
-    }
-  };
+  if (fsPlayPause)  fsPlayPause.addEventListener('click', toggle);
+  if (fsPrevBtn)    fsPrevBtn.addEventListener('click', prev);
+  if (fsNextBtn)    fsNextBtn.addEventListener('click', next);
 
-  // FS controls mirror main player
-  fsPlayPause.addEventListener('click', toggle);
-  fsPrev.addEventListener('click', prev);
-  fsNext.addEventListener('click', next);
-  fsShuffle.addEventListener('click', () => {
+  if (fsShuffleBtn) fsShuffleBtn.addEventListener('click', () => {
     isShuffle = !isShuffle;
     shuffleBtn.classList.toggle('active', isShuffle);
-    fsShuffle.classList.toggle('active', isShuffle);
+    fsShuffleBtn.classList.toggle('active', isShuffle);
   });
-  fsRepeat.addEventListener('click', () => {
+
+  if (fsRepeatBtn) fsRepeatBtn.addEventListener('click', () => {
     repeatMode = (repeatMode + 1) % 3;
     const active = repeatMode > 0;
     repeatBtn.classList.toggle('active', active);
-    fsRepeat.classList.toggle('active', active);
-    fsRepeat.querySelector('i').className = repeatMode === 2 ? 'fas fa-redo-alt' : 'fas fa-redo';
+    fsRepeatBtn.classList.toggle('active', active);
+    const cls = repeatMode === 2 ? 'fas fa-redo-alt' : 'fas fa-redo';
+    repeatBtn.querySelector('i').className = cls;
+    fsRepeatBtn.querySelector('i').className = cls;
   });
 
-  // FS like button
-  fsLike.addEventListener('click', async () => {
-    const user = typeof App !== 'undefined' ? App.getUser() : null;
-    if (!user) return;
-    const song = queue[currentIndex];
-    if (!song) return;
-    try {
-      const res = await API.likeSong(song.uuid);
-      song.liked = res.liked;
-      fsLike.querySelector('i').className = res.liked ? 'fas fa-heart' : 'far fa-heart';
-      fsLike.classList.toggle('liked', res.liked);
-      likeBtn.querySelector('i').className = res.liked ? 'fas fa-heart' : 'far fa-heart';
-      likeBtn.style.color = res.liked ? 'var(--accent)' : '';
-    } catch (e) {}
-  });
+  if (fsLikeBtn) fsLikeBtn.addEventListener('click', () => likeBtn.click());
 
-  // FS progress bar
-  fsProgressBar.addEventListener('click', (e) => {
+  if (fsProgressBar) fsProgressBar.addEventListener('click', (e) => {
     if (!audio.duration) return;
     const rect = fsProgressBar.getBoundingClientRect();
     audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
   });
 
-  // FS volume
-  fsVolumeBar.addEventListener('click', (e) => {
+  if (fsVolumeBar) fsVolumeBar.addEventListener('click', (e) => {
     const rect = fsVolumeBar.getBoundingClientRect();
     setVolume((e.clientX - rect.left) / rect.width);
-    fsVolumeFill.style.width = `${volume * 100}%`;
-  });
-  fsMuteBtn.addEventListener('click', () => {
-    if (isMuted) { setVolume(volume || 0.8); }
-    else { audio.volume = 0; isMuted = true; fsVolumeFill.style.width = '0%'; }
-    fsMuteBtn.querySelector('i').className = isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
   });
 
-  // FS queue button
-  document.getElementById('fsQueueBtn').addEventListener('click', () => {
+  if (fsMuteBtn) fsMuteBtn.addEventListener('click', () => muteBtn.click());
+
+  document.getElementById('fsQueueBtn')?.addEventListener('click', () => {
     closeFullscreen();
-    document.getElementById('queuePanel').classList.toggle('hidden');
-    renderQueue();
+    queuePanel.classList.toggle('hidden');
+    if (!queuePanel.classList.contains('hidden')) renderQueue();
   });
 
-  // Sync FS progress with audio
-  audio.addEventListener('timeupdate', () => {
-    if (!audio.duration) return;
-    const pct = (audio.currentTime / audio.duration) * 100;
-    fsProgressFill.style.width = `${pct}%`;
-    fsCurrentTime.textContent = formatTime(audio.currentTime);
-    // Update mini progress bar CSS variable
-    document.querySelector('.player')?.style.setProperty('--mini-progress', `${pct}%`);
-  });
-  audio.addEventListener('loadedmetadata', () => {
-    fsTotalTime.textContent = formatTime(audio.duration);
-  });
-  audio.addEventListener('play',  () => {
-    fsPlayPause.querySelector('i').className = 'fas fa-pause';
-    fsArtwork.classList.add('playing');
-  });
-  audio.addEventListener('pause', () => {
-    fsPlayPause.querySelector('i').className = 'fas fa-play';
-    fsArtwork.classList.remove('playing');
-  });
-
-  // Sidebar overlay
+  // ── Sidebar + overlay ────────────────────────────────────────
   document.getElementById('sidebarOverlay')?.addEventListener('click', () => {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('active');
   });
-  document.getElementById('hamburgerBtn').addEventListener('click', () => {
+  document.getElementById('hamburgerBtn')?.addEventListener('click', () => {
     document.getElementById('sidebar').classList.toggle('open');
-    document.getElementById('sidebarOverlay').classList.toggle('active');
+    document.getElementById('sidebarOverlay')?.classList.toggle('active');
   });
 
-  // Set initial volume
+  // ── Init volume ──────────────────────────────────────────────
   audio.volume = volume;
   setVolume(volume);
 
-  // Patch updateUI to also sync fullscreen
-  const _origUpdateUI = updateUI;
-  // (updateUI is already defined above, we extend it by calling syncFS after)
-  audio.addEventListener('play',  syncFS);
-  audio.addEventListener('pause', syncFS);
-
-  // Patch play to also sync fullscreen after loading
-  const _origPlay = play;
-  const playAndSync = async (song, queueSongs) => {
-    await _origPlay(song, queueSongs);
-    syncFS();
-  };
-
   return {
-    play: playAndSync,
+    play,
     toggle,
     next,
     prev,
-    jumpTo: (idx) => playByIndex(idx),
-    setQueue: (songs) => { queue = [...songs]; renderQueue(); },
-    getQueue: () => queue,
-    getCurrent: () => queue[currentIndex],
-    isPlaying: () => isPlaying,
+    jumpTo:       (idx)   => playByIndex(idx),
+    setQueue:     (songs) => { queue = [...songs]; renderQueue(); },
+    getQueue:     ()      => queue,
+    getCurrent:   ()      => queue[currentIndex],
+    isPlaying:    ()      => isPlaying,
     getArtwork,
     openFullscreen,
     closeFullscreen,

@@ -1155,3 +1155,170 @@ input,select,textarea{font-family:inherit}
   .player-right  { display: flex; }
   .player-left   { width: 280px; }
 }
+
+/* ============================================================
+   NOTIFICATIONS BANNER
+   ============================================================ */
+.notifications-banner {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.notif-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 20px;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(0,0,0,0.2);
+  animation: slideDown 0.3s ease;
+}
+@keyframes slideDown {
+  from { opacity:0; transform:translateY(-8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.notif-bar.green  { background: rgba(16,185,129,0.18); border-left: 4px solid #10b981; }
+.notif-bar.yellow { background: rgba(234,179,8,0.18);  border-left: 4px solid #eab308; }
+.notif-bar.red    { background: rgba(239,68,68,0.18);  border-left: 4px solid #ef4444; }
+.notif-bar-icon { font-size: 18px; flex-shrink:0; margin-top:1px; }
+.notif-bar.green  .notif-bar-icon { color: #10b981; }
+.notif-bar.yellow .notif-bar-icon { color: #eab308; }
+.notif-bar.red    .notif-bar-icon { color: #ef4444; }
+.notif-bar-body { flex:1; min-width:0; }
+.notif-bar-title { font-weight:700; margin-bottom:2px; }
+.notif-bar-msg   { color: var(--text-secondary); font-size:13px; line-height:1.5; }
+.notif-bar-close {
+  background:none; border:none; cursor:pointer;
+  color: var(--text-muted); font-size:18px; padding:2px 4px;
+  flex-shrink:0; transition: color var(--transition);
+}
+.notif-bar-close:hover { color: var(--text-primary); }
+
+/* ============================================================
+   HELP FAB + MODAL
+   ============================================================ */
+.help-fab {
+  position: fixed;
+  bottom: calc(var(--player-h) + 20px);
+  right: 20px;
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 18px;
+  border: none; cursor: pointer;
+  box-shadow: 0 4px 20px var(--accent-glow);
+  z-index: 990;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.help-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 28px var(--accent-glow);
+}
+.help-options { display: flex; flex-direction: column; gap: 8px; }
+.help-option {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: all var(--transition);
+}
+.help-option:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  transform: translateX(4px);
+}
+.help-option-icon {
+  width: 42px; height: 42px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.help-option-info { flex:1; min-width:0; }
+.help-option-label { font-size:13px; color: var(--text-muted); }
+.help-option-value { font-size:14px; font-weight:600; }
+.help-option-arrow { color: var(--text-muted); font-size: 12px; }
+
+/* ============================================================
+   ARTIST BIOGRAPHY SECTION
+   ============================================================ */
+.artist-bio-section {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin: 0 32px 24px;
+  border: 1px solid var(--border);
+  line-height: 1.8;
+  color: var(--text-secondary);
+  font-size: 14px;
+  white-space: pre-line;
+}
+.artist-bio-section h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.artist-bio-section h4 i { color: var(--accent); }
+.bio-stats-row {
+  display: flex; gap: 24px; flex-wrap: wrap;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.bio-stat { text-align: center; }
+.bio-stat .val { font-size: 22px; font-weight: 800; color: var(--accent); }
+.bio-stat .lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+/* Biography edit textarea */
+.bio-edit-wrap { position: relative; }
+.bio-char-count {
+  position: absolute; bottom: 10px; right: 12px;
+  font-size: 11px; color: var(--text-muted);
+}
+
+/* ============================================================
+   ADMIN NOTIFICATION MANAGER
+   ============================================================ */
+.notif-admin-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  border: 1px solid var(--border);
+  margin-bottom: 10px;
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.notif-admin-card .color-dot {
+  width: 12px; height: 12px; border-radius: 50%; flex-shrink:0; margin-top:4px;
+}
+.notif-admin-card .color-dot.green  { background: #10b981; }
+.notif-admin-card .color-dot.yellow { background: #eab308; }
+.notif-admin-card .color-dot.red    { background: #ef4444; }
+.notif-admin-card-body { flex:1; min-width:0; }
+.notif-admin-card-title { font-weight:700; font-size:14px; }
+.notif-admin-card-meta  { font-size:12px; color:var(--text-muted); margin-top:4px; }
+.notif-admin-card-msg   { font-size:13px; color:var(--text-secondary); margin-top:6px; }
+.color-selector { display:flex; gap:10px; margin-top:8px; }
+.color-opt {
+  width:32px; height:32px; border-radius:50%; cursor:pointer;
+  border:3px solid transparent; transition:all var(--transition);
+}
+.color-opt:hover, .color-opt.selected { border-color:#fff; transform:scale(1.15); }
+.color-opt.green  { background:#10b981; }
+.color-opt.yellow { background:#eab308; }
+.color-opt.red    { background:#ef4444; }
+
+@media (max-width: 768px) {
+  .help-fab { bottom: calc(var(--player-h) + 14px); right: 14px; }
+  .artist-bio-section { margin: 0 14px 16px; padding: 18px 14px; }
+  .bio-stats-row { gap: 16px; }
+}

@@ -10,6 +10,11 @@ const App = (() => {
   const setUser = (u) => {
     currentUser = u;
     updateNavForUser(u);
+    if (u) loadNotifications();
+    else {
+      const banner = document.getElementById('notificationsBanner');
+      if (banner) { banner.innerHTML = ''; banner.classList.add('hidden'); }
+    }
   };
 
   // ── Boot ─────────────────────────────────────────────────
@@ -287,22 +292,53 @@ const App = (() => {
     });
   };
 
-  // ── Play song from row (uses cached songs) ───────────────
+  // ── Play song from row ───────────────────────────────────────
+  // FIX: collect all song UUIDs visible on the page, fetch their data, set as queue
   const playSongFromRow = async (uuid) => {
-    // gather context songs from current page
-    const rows = document.querySelectorAll('.song-row');
-    const uuids = Array.from(rows).map(r => r.dataset.uuid).filter(Boolean);
+    // Collect all song-row uuids currently on screen (for queue context)
+    const rows  = Array.from(document.querySelectorAll('.song-row[data-uuid]'));
+    const uuids = rows.map(r => r.dataset.uuid).filter(Boolean);
 
-    if (allSongs.length && uuids.every(u => allSongs.find(s => s.uuid === u))) {
-      const song = allSongs.find(s => s.uuid === uuid);
-      if (song) { Player.play(song, allSongs.filter(s => uuids.includes(s.uuid))); return; }
+    // If we have a cached song list matching these rows, use it directly
+    if (allSongs.length) {
+      const allMatch = uuids.every(u => allSongs.find(s => s.uuid === u));
+      if (allMatch) {
+        const song = allSongs.find(s => s.uuid === uuid);
+        if (song) {
+          const contextSongs = allSongs.filter(s => uuids.includes(s.uuid));
+          return Player.play(song, contextSongs);
+        }
+      }
     }
 
-    // Fetch song
+    // Otherwise fetch the clicked song and use visible rows as lightweight queue stubs
     try {
       const res = await API.getSong(uuid);
-      Player.play(res.song, [res.song]);
-    } catch (e) { showNotification('Could not load song', 'error'); }
+      const clickedSong = res.song;
+
+      // Build a minimal queue from DOM data + fetched song details
+      // Songs will fully load when played
+      const queueSongs = uuids.map(u => {
+        if (u === uuid) return clickedSong;
+        const row = rows.find(r => r.dataset.uuid === u);
+        // Build a minimal stub from the row's DOM content
+        return {
+          uuid: u,
+          title:       row?.querySelector('.song-row-title')?.textContent || '',
+          artist_name: row?.querySelector('.song-row-artist')?.textContent || '',
+          stage_name:  null,
+          artwork:     row?.querySelector('.song-row-img img')?.src?.split('/uploads/artwork/')[1] || null,
+          file_path:   null, // will fail gracefully if played
+        };
+      }).filter(Boolean);
+
+      // Store fetched song in allSongs cache
+      if (!allSongs.find(s => s.uuid === uuid)) allSongs.push(clickedSong);
+
+      Player.play(clickedSong, queueSongs.length > 1 ? queueSongs : [clickedSong]);
+    } catch (e) {
+      showNotification('Could not load song', 'error');
+    }
   };
 
   // ── Like toggle ──────────────────────────────────────────
@@ -524,7 +560,66 @@ const App = (() => {
   };
 
   // Boot
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => {
+    init();
+    initHelp();
+  });
+
+  // ── Help modal ───────────────────────────────────────────────
+  const initHelp = () => {
+    const fab     = document.getElementById('helpFab');
+    const overlay = document.getElementById('helpOverlay');
+    fab?.addEventListener('click', () => overlay?.classList.remove('hidden'));
+    overlay?.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.classList.add('hidden');
+    });
+  };
+
+  // ── Notifications banner ─────────────────────────────────────
+  const loadNotifications = async () => {
+    const banner = document.getElementById('notificationsBanner');
+    if (!banner || !currentUser) return;
+    try {
+      const res = await API.get('/notifications');
+      const notifs = res.notifications || [];
+      banner.innerHTML = '';
+      if (!notifs.length) { banner.classList.add('hidden'); return; }
+      banner.classList.remove('hidden');
+      notifs.forEach(n => {
+        const icons = { green: 'check-circle', yellow: 'exclamation-triangle', red: 'exclamation-circle' };
+        const bar = document.createElement('div');
+        bar.className = `notif-bar ${n.color}`;
+        bar.dataset.id = n.id;
+        bar.innerHTML = `
+          <i class="fas fa-${icons[n.color] || 'info-circle'} notif-bar-icon"></i>
+          <div class="notif-bar-body">
+            <div class="notif-bar-title">${n.title}</div>
+            <div class="notif-bar-msg">${n.message}</div>
+          </div>
+          <button class="notif-bar-close" onclick="App.dismissNotification(${n.id}, this)" title="Dismiss">
+            <i class="fas fa-times"></i>
+          </button>`;
+        banner.appendChild(bar);
+      });
+    } catch (e) { /* silent — user may not be logged in */ }
+  };
+
+  const dismissNotification = async (id, btn) => {
+    try {
+      await API.post(`/notifications/${id}/dismiss`);
+      const bar = btn.closest('.notif-bar');
+      bar.style.transition = 'opacity 0.25s, max-height 0.3s';
+      bar.style.opacity = '0';
+      bar.style.maxHeight = '0';
+      bar.style.overflow = 'hidden';
+      bar.style.padding = '0';
+      setTimeout(() => {
+        bar.remove();
+        const banner = document.getElementById('notificationsBanner');
+        if (banner && !banner.children.length) banner.classList.add('hidden');
+      }, 300);
+    } catch (e) { showNotification('Could not dismiss', 'error'); }
+  };
 
   return {
     navigate, getUser, setUser, updateNavForUser,
@@ -533,6 +628,6 @@ const App = (() => {
     playAllFromPlaylist, playSongFromRow, playFromSearch,
     downloadSong, deleteSong,
     adminToggleUser, adminDeleteUser, adminToggleSong, adminDeleteSong, adminApproveSub,
-    deleteAccount,
+    deleteAccount, dismissNotification, loadNotifications,
   };
 })();

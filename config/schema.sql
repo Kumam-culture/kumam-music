@@ -224,3 +224,27 @@ INSERT IGNORE INTO playlists (uuid, title, description, is_system, is_public) VA
   ('sys-new-releases-001', 'New Releases', 'Fresh music just dropped', TRUE, TRUE),
   ('sys-gospel-mix-001', 'Gospel Mix', 'Inspirational gospel collection', TRUE, TRUE),
   ('sys-top100-001', 'Top 100', 'The most streamed songs', TRUE, TRUE);
+
+-- ── Admin Notifications ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS notifications (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  uuid VARCHAR(36) UNIQUE NOT NULL,
+  title VARCHAR(200) NOT NULL,
+  message TEXT NOT NULL,
+  color ENUM('green','yellow','red') DEFAULT 'green',
+  target ENUM('all','listeners','artists') DEFAULT 'all',
+  created_by INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Track which users have dismissed which notifications
+CREATE TABLE IF NOT EXISTS notification_dismissals (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  notification_id INT NOT NULL,
+  user_id INT NOT NULL,
+  dismissed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_dismissal (notification_id, user_id),
+  FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);

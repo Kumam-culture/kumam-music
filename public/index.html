@@ -265,6 +265,68 @@
   <span id="notificationMsg"></span>
 </div>
 
+<!-- NOTIFICATIONS BANNER -->
+<div id="notificationsBanner" class="notifications-banner hidden"></div>
+
+<!-- HELP BUTTON (fixed floating) -->
+<button class="help-fab" id="helpFab" title="Help & Support">
+  <i class="fas fa-question"></i>
+</button>
+
+<!-- HELP MODAL -->
+<div class="modal-overlay hidden" id="helpOverlay">
+  <div class="modal small-modal" id="helpModal">
+    <button class="modal-close" onclick="document.getElementById('helpOverlay').classList.add('hidden')">
+      <i class="fas fa-times"></i>
+    </button>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:60px;height:60px;background:var(--accent-glow);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:24px;color:var(--accent)">
+        <i class="fas fa-headset"></i>
+      </div>
+      <h2 style="font-size:20px;margin-bottom:6px">Help & Support</h2>
+      <p style="color:var(--text-muted);font-size:13px">We're here to help. Reach us through any of these channels.</p>
+    </div>
+    <div class="help-options">
+      <a href="mailto:williamekidu@gmail.com" class="help-option">
+        <div class="help-option-icon" style="background:#ef444420;color:#ef4444"><i class="fas fa-envelope"></i></div>
+        <div class="help-option-info">
+          <div class="help-option-label">Email Us</div>
+          <div class="help-option-value">williamekidu@gmail.com</div>
+        </div>
+        <i class="fas fa-chevron-right help-option-arrow"></i>
+      </a>
+      <a href="https://wa.me/256794257174" target="_blank" class="help-option">
+        <div class="help-option-icon" style="background:#25D36620;color:#25D366"><i class="fab fa-whatsapp"></i></div>
+        <div class="help-option-info">
+          <div class="help-option-label">WhatsApp</div>
+          <div class="help-option-value">+256 794 257 174</div>
+        </div>
+        <i class="fas fa-chevron-right help-option-arrow"></i>
+      </a>
+      <a href="tel:+256794257174" class="help-option">
+        <div class="help-option-icon" style="background:#3b82f620;color:#3b82f6"><i class="fas fa-phone"></i></div>
+        <div class="help-option-info">
+          <div class="help-option-label">Call Us</div>
+          <div class="help-option-value">+256 794 257 174</div>
+        </div>
+        <i class="fas fa-chevron-right help-option-arrow"></i>
+      </a>
+      <a href="tel:+256731020495" class="help-option">
+        <div class="help-option-icon" style="background:#3b82f620;color:#3b82f6"><i class="fas fa-phone-alt"></i></div>
+        <div class="help-option-info">
+          <div class="help-option-label">Alternative Line</div>
+          <div class="help-option-value">+256 731 020 495</div>
+        </div>
+        <i class="fas fa-chevron-right help-option-arrow"></i>
+      </a>
+    </div>
+    <div style="margin-top:20px;padding:14px;background:var(--bg-primary);border-radius:var(--radius-sm);text-align:center">
+      <div style="font-size:12px;color:var(--text-muted)">Support hours: Mon–Sat, 8am–8pm EAT</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Response within 24 hours via email</div>
+    </div>
+  </div>
+</div>
+
 <!-- SIDEBAR OVERLAY (mobile) -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 

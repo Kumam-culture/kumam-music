@@ -567,8 +567,8 @@ const Pages = (() => {
           <div class="profile-info">
             <div class="name">${a.stage_name || a.name}</div>
             <div class="role-badge">Artist</div>
-            <div class="meta">${fmtNum(a.follower_count||0)} followers · ${fmtNum(a.total_streams||0)} streams ${a.genre ? '· ' + a.genre : ''}</div>
-            <div style="margin-top:14px;display:flex;gap:10px">
+            <div class="meta">${fmtNum(a.follower_count||0)} followers · ${fmtNum(a.total_streams||0)} streams ${a.genre ? '· ' + a.genre : ''} ${a.location ? '· 📍 ' + a.location : ''}</div>
+            <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
               <button class="btn ${a.is_following?'btn-primary':'btn-outline'}" id="artistFollowBtn" onclick="App.toggleFollow(this,'${a.uuid}')">
                 ${a.is_following ? '<i class="fas fa-check"></i> Following' : '<i class="fas fa-plus"></i> Follow'}
               </button>
@@ -576,22 +576,39 @@ const Pages = (() => {
             </div>
           </div>
         </div>
+
+        ${a.bio ? `
+        <div class="artist-bio-section">
+          <h4><i class="fas fa-user-circle"></i> About ${a.stage_name || a.name}</h4>
+          <div class="bio-text">${a.bio.replace(/\n/g, '<br/>')}</div>
+          <div class="bio-stats-row">
+            <div class="bio-stat"><div class="val">${fmtNum(songs.length)}</div><div class="lbl">Songs</div></div>
+            <div class="bio-stat"><div class="val">${fmtNum(albums.length)}</div><div class="lbl">Albums</div></div>
+            <div class="bio-stat"><div class="val">${fmtNum(a.follower_count||0)}</div><div class="lbl">Followers</div></div>
+            <div class="bio-stat"><div class="val">${fmtNum(a.total_streams||0)}</div><div class="lbl">Streams</div></div>
+          </div>
+          ${a.social_instagram || a.social_twitter || a.website ? `
+          <div style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap">
+            ${a.website         ? `<a href="${a.website}" target="_blank" class="btn btn-outline btn-sm"><i class="fas fa-globe"></i> Website</a>` : ''}
+            ${a.social_instagram? `<a href="${a.social_instagram}" target="_blank" class="btn btn-outline btn-sm"><i class="fab fa-instagram"></i> Instagram</a>` : ''}
+            ${a.social_twitter  ? `<a href="${a.social_twitter}"   target="_blank" class="btn btn-outline btn-sm"><i class="fab fa-twitter"></i> Twitter</a>` : ''}
+          </div>` : ''}
+        </div>` : ''}
+
         <div class="profile-tabs">
           <div class="profile-tab active" onclick="Pages.switchTab(this,'songs-tab')">Songs</div>
           <div class="profile-tab" onclick="Pages.switchTab(this,'albums-tab')">Albums</div>
-          ${a.bio ? `<div class="profile-tab" onclick="Pages.switchTab(this,'about-tab')">About</div>` : ''}
         </div>
         <div class="profile-tab-content active" id="songs-tab">
-          <div class="songs-list">
+          <div class="songs-list" style="padding:16px">
             ${songs.map((s,i) => songRow(s, i, false)).join('') || empty('music','No songs yet','')}
           </div>
         </div>
         <div class="profile-tab-content" id="albums-tab">
-          <div class="albums-grid" style="padding:32px">
+          <div class="albums-grid" style="padding:24px">
             ${albums.map(al => albumCard(al)).join('') || empty('record-vinyl','No albums yet','')}
           </div>
-        </div>
-        ${a.bio ? `<div class="profile-tab-content" id="about-tab"><div style="padding:32px;max-width:600px;line-height:1.7;color:var(--text-secondary)">${a.bio}</div></div>` : ''}`;
+        </div>`;
     } catch (e) {
       container.innerHTML = `<p style="color:var(--red);padding:32px">${e.message}</p>`;
     }
@@ -651,8 +668,11 @@ const Pages = (() => {
                 <input type="tel" name="phone" value="${u.phone||''}"/>
               </div>
               <div class="form-group">
-                <label>Bio</label>
-                <textarea name="bio" rows="3" style="resize:vertical">${u.bio||''}</textarea>
+                <label>Bio / About You</label>
+                <div class="bio-edit-wrap">
+                  <textarea name="bio" id="bioTextarea" rows="5" maxlength="1000" style="resize:vertical;padding-bottom:28px" placeholder="Tell your fans about yourself — your journey, style, influences...">${u.bio||''}</textarea>
+                  <span class="bio-char-count" id="bioCharCount">${(u.bio||'').length}/1000</span>
+                </div>
               </div>
               <div class="form-group">
                 <label>Profile Photo</label>
@@ -699,6 +719,16 @@ const Pages = (() => {
           </div>
         </div>` : ''}
       `;
+
+      // Bio char counter
+      const bioTA = document.getElementById('bioTextarea');
+      const bioCount = document.getElementById('bioCharCount');
+      if (bioTA && bioCount) {
+        bioTA.addEventListener('input', () => {
+          bioCount.textContent = `${bioTA.value.length}/1000`;
+          bioCount.style.color = bioTA.value.length > 900 ? 'var(--red)' : 'var(--text-muted)';
+        });
+      }
 
       // Edit profile submit
       document.getElementById('editProfileForm').addEventListener('submit', async (e) => {
@@ -1056,11 +1086,13 @@ const Pages = (() => {
           <div class="admin-tab" onclick="Pages.adminTab(this,'admin-songs')">Songs</div>
           <div class="admin-tab" onclick="Pages.adminTab(this,'admin-subs')">Subscriptions</div>
           <div class="admin-tab" onclick="Pages.adminTab(this,'admin-earnings')">Earnings</div>
+          <div class="admin-tab" onclick="Pages.adminTab(this,'admin-notifs')">Notifications</div>
         </div>
         <div class="admin-content active" id="admin-users">${loading()}</div>
         <div class="admin-content" id="admin-songs"></div>
         <div class="admin-content" id="admin-subs"></div>
         <div class="admin-content" id="admin-earnings"></div>
+        <div class="admin-content" id="admin-notifs"></div>
       `;
 
       // Load users tab
@@ -1081,6 +1113,7 @@ const Pages = (() => {
     else if (tabId === 'admin-songs' && !tab.dataset.loaded) loadAdminSongs();
     else if (tabId === 'admin-subs' && !tab.dataset.loaded) loadAdminSubs();
     else if (tabId === 'admin-earnings' && !tab.dataset.loaded) loadAdminEarnings();
+    else if (tabId === 'admin-notifs') loadAdminNotifs();
   };
 
   const loadAdminUsers = async () => {
@@ -1232,13 +1265,146 @@ const Pages = (() => {
       </div>`;
   };
 
+  const loadAdminNotifs = async () => {
+    const el = document.getElementById('admin-notifs');
+    if (!el) return;
+    el.innerHTML = `
+      <div style="max-width:640px">
+        <h3 style="font-weight:700;font-size:16px;margin-bottom:16px"><i class="fas fa-bell" style="color:var(--accent)"></i> Send Notification</h3>
+        <form id="adminNotifForm">
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="notifTitle" placeholder="Notification title" maxlength="200" required style="background:var(--bg-primary);border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-primary);width:100%;outline:none"/>
+          </div>
+          <div class="form-group">
+            <label>Message</label>
+            <textarea id="notifMessage" rows="3" placeholder="Your message to users..." maxlength="1000" required style="background:var(--bg-primary);border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-primary);width:100%;outline:none;resize:vertical"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Color / Urgency</label>
+            <div class="color-selector">
+              <div class="color-opt green selected" data-color="green" title="Green — Normal info" onclick="Pages.selectNotifColor(this)"></div>
+              <div class="color-opt yellow" data-color="yellow" title="Yellow — Warning" onclick="Pages.selectNotifColor(this)"></div>
+              <div class="color-opt red" data-color="red" title="Red — Urgent / Error" onclick="Pages.selectNotifColor(this)"></div>
+            </div>
+            <small style="color:var(--text-muted);margin-top:6px;display:block">
+              🟢 Green = general info &nbsp;|&nbsp; 🟡 Yellow = warning &nbsp;|&nbsp; 🔴 Red = urgent
+            </small>
+          </div>
+          <div class="form-group">
+            <label>Send To</label>
+            <select id="notifTarget" style="background:var(--bg-primary);border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-primary);width:100%;outline:none">
+              <option value="all">Everyone (all users)</option>
+              <option value="listeners">Listeners only</option>
+              <option value="artists">Artists only</option>
+            </select>
+          </div>
+          <div id="notifFormMsg" class="hidden" style="margin-bottom:12px"></div>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Send Notification</button>
+        </form>
+
+        <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h3 style="font-weight:700;font-size:16px"><i class="fas fa-list" style="color:var(--accent)"></i> Sent Notifications</h3>
+            <button class="btn btn-outline btn-sm" onclick="Pages.loadAdminNotifs()"><i class="fas fa-sync"></i> Refresh</button>
+          </div>
+          <div id="adminNotifList">${loading()}</div>
+        </div>
+      </div>`;
+
+    // Color selector state
+    let selectedColor = 'green';
+    document.getElementById('adminNotifForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title   = document.getElementById('notifTitle').value.trim();
+      const message = document.getElementById('notifMessage').value.trim();
+      const target  = document.getElementById('notifTarget').value;
+      const msgEl   = document.getElementById('notifFormMsg');
+      try {
+        await API.post('/notifications', { title, message, color: selectedColor, target });
+        msgEl.className = 'alert alert-success';
+        msgEl.textContent = '✓ Notification sent successfully!';
+        msgEl.classList.remove('hidden');
+        e.target.reset();
+        document.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected'));
+        document.querySelector('.color-opt.green').classList.add('selected');
+        selectedColor = 'green';
+        setTimeout(() => loadAdminNotifList(), 500);
+      } catch (err) {
+        msgEl.className = 'alert alert-error';
+        msgEl.textContent = err.message;
+        msgEl.classList.remove('hidden');
+      }
+    });
+
+    // Store color selection in closure
+    Pages._setNotifColor = (color) => { selectedColor = color; };
+
+    loadAdminNotifList();
+  };
+
+  const selectNotifColor = (el) => {
+    document.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    if (Pages._setNotifColor) Pages._setNotifColor(el.dataset.color);
+  };
+
+  const loadAdminNotifList = async () => {
+    const list = document.getElementById('adminNotifList');
+    if (!list) return;
+    try {
+      const res = await API.get('/notifications/admin/all');
+      const notifs = res.notifications || [];
+      if (!notifs.length) {
+        list.innerHTML = `<p style="color:var(--text-muted);padding:16px 0">No notifications sent yet.</p>`;
+        return;
+      }
+      const icons = { green: 'check-circle', yellow: 'exclamation-triangle', red: 'exclamation-circle' };
+      const targetLabels = { all: 'Everyone', listeners: 'Listeners', artists: 'Artists' };
+      list.innerHTML = notifs.map(n => `
+        <div class="notif-admin-card" id="notif-card-${n.id}">
+          <div class="color-dot ${n.color}"></div>
+          <div class="notif-admin-card-body">
+            <div class="notif-admin-card-title">
+              <i class="fas fa-${icons[n.color]}" style="color:${n.color==='green'?'#10b981':n.color==='yellow'?'#eab308':'#ef4444'};margin-right:6px"></i>
+              ${n.title}
+            </div>
+            <div class="notif-admin-card-meta">
+              To: <strong>${targetLabels[n.target]}</strong> &nbsp;·&nbsp;
+              ${new Date(n.created_at).toLocaleString()} &nbsp;·&nbsp;
+              ${n.dismiss_count} dismissed
+            </div>
+            <div class="notif-admin-card-msg">${n.message}</div>
+          </div>
+          <button class="btn btn-sm btn-danger" onclick="Pages.deleteAdminNotif(${n.id})" title="Delete notification">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>`).join('');
+    } catch (err) {
+      list.innerHTML = `<p style="color:var(--red)">${err.message}</p>`;
+    }
+  };
+
+  const deleteAdminNotif = async (id) => {
+    if (!confirm('Delete this notification? Users who haven\'t dismissed it will no longer see it.')) return;
+    try {
+      await API.delete(`/notifications/${id}`);
+      const card = document.getElementById(`notif-card-${id}`);
+      if (card) { card.style.opacity = '0'; card.style.transition = 'opacity 0.2s'; setTimeout(() => card.remove(), 200); }
+      App.showNotification('Notification deleted');
+    } catch (err) {
+      App.showNotification(err.message, 'error');
+    }
+  };
+
   return {
     renderHome, renderDiscover, renderGenres, renderGenreDetail, renderCharts,
     renderLibrary, renderLiked, renderHistory, renderPlaylists, renderPlaylist,
     renderAlbum, renderArtist, renderProfile, renderSettings, renderSubscription,
     renderArtistDashboard, renderUpload, renderMySongs, renderAdmin,
-    filterDiscover, switchTab, adminTab,
+    filterDiscover, switchTab, adminTab, selectNotifColor, deleteAdminNotif,
     loadAdminUsers, loadAdminSongs, loadAdminSubs, loadAdminEarnings,
+    loadAdminNotifs, loadAdminNotifList,
     songCard, songRow, artistCard, albumCard, playlistCard,
   };
 })();
