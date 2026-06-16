@@ -16,11 +16,11 @@ const upload = multer({ storage, limits: { fileSize: 3 * 1024 * 1024 } });
 // GET /api/users/profile
 router.get('/profile', authenticate, async (req, res) => {
   try {
-    const [rows] = await pool.execute(
+    const [rows] = await pool.query(
       'SELECT id, uuid, name, email, role, avatar, bio, phone, created_at FROM users WHERE id = ?',
       [req.user.id]
     );
-    const [sub] = await pool.execute(
+    const [sub] = await pool.query(
       'SELECT * FROM subscriptions WHERE user_id = ? AND status = "active" AND end_date >= CURDATE() LIMIT 1',
       [req.user.id]
     );
@@ -39,7 +39,7 @@ router.put('/profile', authenticate, upload.single('avatar'), async (req, res) =
     // Verify password for credential changes
     if (email || newPassword) {
       if (!currentPassword) return res.status(400).json({ error: 'Current password required to update credentials' });
-      const [rows] = await pool.execute('SELECT password FROM users WHERE id = ?', [req.user.id]);
+      const [rows] = await pool.query('SELECT password FROM users WHERE id = ?', [req.user.id]);
       const match = await bcrypt.compare(currentPassword, rows[0].password);
       if (!match) return res.status(401).json({ error: 'Current password is incorrect' });
     }
@@ -59,7 +59,7 @@ router.put('/profile', authenticate, upload.single('avatar'), async (req, res) =
 
     if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
     vals.push(req.user.id);
-    await pool.execute(`UPDATE users SET ${updates.join(',')} WHERE id = ?`, vals);
+    await pool.query(`UPDATE users SET ${updates.join(',')} WHERE id = ?`, vals);
     res.json({ message: 'Profile updated successfully' });
   } catch (err) {
     console.error(err);
@@ -70,7 +70,7 @@ router.put('/profile', authenticate, upload.single('avatar'), async (req, res) =
 // GET /api/users/liked-songs
 router.get('/liked-songs', authenticate, async (req, res) => {
   try {
-    const [songs] = await pool.execute(`
+    const [songs] = await pool.query(`
       SELECT s.*, u.name AS artist_name, ap.stage_name,
         g.name AS genre_name, al.title AS album_title, al.artwork AS album_artwork,
         1 AS liked, l.created_at AS liked_at
@@ -92,7 +92,7 @@ router.get('/liked-songs', authenticate, async (req, res) => {
 // GET /api/users/followed-artists
 router.get('/followed-artists', authenticate, async (req, res) => {
   try {
-    const [artists] = await pool.execute(`
+    const [artists] = await pool.query(`
       SELECT u.id, u.uuid, u.name, u.avatar,
         ap.stage_name, ap.genre, ap.total_streams,
         1 AS is_following, f.created_at AS followed_at
@@ -111,26 +111,30 @@ router.get('/followed-artists', authenticate, async (req, res) => {
 // GET /api/users/recommendations
 router.get('/recommendations', authenticate, async (req, res) => {
   try {
-    // Based on: liked songs genres, followed artists, trending
-    const [likedGenres] = await pool.execute(`
+    const [likedGenres] = await pool.query(`
       SELECT s.genre_id, COUNT(*) AS cnt
       FROM likes l JOIN songs s ON l.song_id = s.id
       WHERE l.user_id = ? AND s.genre_id IS NOT NULL
       GROUP BY s.genre_id ORDER BY cnt DESC LIMIT 3
     `, [req.user.id]);
 
-    const [followedArtists] = await pool.execute(
+    const [followedArtists] = await pool.query(
       'SELECT artist_id FROM follows WHERE follower_id = ?', [req.user.id]
     );
 
-    const likedSongIds = (await pool.execute('SELECT song_id FROM likes WHERE user_id = ?', [req.user.id]))[0].map(r => r.song_id);
-    const genreIds = likedGenres.map(g => g.genre_id);
-    const artistIds = followedArtists.map(a => a.artist_id);
+    const likedRows = (await pool.query('SELECT song_id FROM likes WHERE user_id = ?', [req.user.id]))[0];
+    const likedSongIds = likedRows.map(r => r.song_id);
+    const genreIds   = likedGenres.map(g => g.genre_id);
+    const artistIds  = followedArtists.map(a => a.artist_id);
 
     let songs = [];
-    // From followed artists
+
+    // From followed artists — use pool.escape to avoid IN (?) prepared-stmt bug
     if (artistIds.length) {
-      const [fromArtists] = await pool.execute(`
+      const artistIn   = artistIds.map(id => pool.escape(id)).join(',');
+      const excludeStr = likedSongIds.length
+        ? `AND s.id NOT IN (${likedSongIds.map(id => pool.escape(id)).join(',')})` : '';
+      const [fromArtists] = await pool.query(`
         SELECT s.*, u.name AS artist_name, ap.stage_name,
           g.name AS genre_name, al.artwork AS album_artwork,
           'followed_artist' AS reason
@@ -139,16 +143,17 @@ router.get('/recommendations', authenticate, async (req, res) => {
         LEFT JOIN artist_profiles ap ON u.id = ap.user_id
         LEFT JOIN genres g ON s.genre_id = g.id
         LEFT JOIN albums al ON s.album_id = al.id
-        WHERE s.artist_id IN (${artistIds.map(() => '?').join(',')}) AND s.is_published = TRUE
-        ${likedSongIds.length ? `AND s.id NOT IN (${likedSongIds.map(() => '?').join(',')})` : ''}
+        WHERE s.artist_id IN (${artistIn}) AND s.is_published = TRUE
+        ${excludeStr}
         ORDER BY s.stream_count DESC LIMIT 10
-      `, [...artistIds, ...(likedSongIds.length ? likedSongIds : [])]);
+      `);
       songs.push(...fromArtists);
     }
 
     // From liked genres
     if (genreIds.length) {
-      const [fromGenres] = await pool.execute(`
+      const genreIn = genreIds.map(id => pool.escape(id)).join(',');
+      const [fromGenres] = await pool.query(`
         SELECT s.*, u.name AS artist_name, ap.stage_name,
           g.name AS genre_name, al.artwork AS album_artwork,
           'liked_genre' AS reason
@@ -157,14 +162,14 @@ router.get('/recommendations', authenticate, async (req, res) => {
         LEFT JOIN artist_profiles ap ON u.id = ap.user_id
         LEFT JOIN genres g ON s.genre_id = g.id
         LEFT JOIN albums al ON s.album_id = al.id
-        WHERE s.genre_id IN (${genreIds.map(() => '?').join(',')}) AND s.is_published = TRUE
+        WHERE s.genre_id IN (${genreIn}) AND s.is_published = TRUE
         ORDER BY s.stream_count DESC LIMIT 10
-      `, genreIds);
+      `);
       songs.push(...fromGenres);
     }
 
     // Trending fallback
-    const [trending] = await pool.execute(`
+    const [trending] = await pool.query(`
       SELECT s.*, u.name AS artist_name, ap.stage_name,
         g.name AS genre_name, al.artwork AS album_artwork,
         'trending' AS reason
@@ -178,7 +183,6 @@ router.get('/recommendations', authenticate, async (req, res) => {
     `);
     songs.push(...trending);
 
-    // Deduplicate
     const seen = new Set();
     const unique = songs.filter(s => { if (seen.has(s.id)) return false; seen.add(s.id); return true; });
     res.json({ songs: unique.slice(0, 20) });
@@ -191,7 +195,7 @@ router.get('/recommendations', authenticate, async (req, res) => {
 // GET /api/users/history
 router.get('/history', authenticate, async (req, res) => {
   try {
-    const [songs] = await pool.execute(`
+    const [songs] = await pool.query(`
       SELECT s.*, u.name AS artist_name, ap.stage_name, g.name AS genre_name,
         al.artwork AS album_artwork, MAX(sh.played_at) AS last_played
       FROM stream_history sh

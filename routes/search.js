@@ -13,7 +13,7 @@ router.get('/', optionalAuth, async (req, res) => {
     const results = {};
 
     if (type === 'all' || type === 'songs') {
-      const [songs] = await pool.execute(`
+      const [songs] = await pool.query(`
         SELECT s.uuid, s.title, s.artwork, s.stream_count, s.duration,
           u.name AS artist_name, ap.stage_name, g.name AS genre_name, al.artwork AS album_artwork
         FROM songs s
@@ -28,7 +28,7 @@ router.get('/', optionalAuth, async (req, res) => {
     }
 
     if (type === 'all' || type === 'artists') {
-      const [artists] = await pool.execute(`
+      const [artists] = await pool.query(`
         SELECT u.uuid, u.name, u.avatar, ap.stage_name, ap.genre,
           COUNT(DISTINCT f.follower_id) AS follower_count
         FROM users u
@@ -43,7 +43,7 @@ router.get('/', optionalAuth, async (req, res) => {
     }
 
     if (type === 'all' || type === 'albums') {
-      const [albums] = await pool.execute(`
+      const [albums] = await pool.query(`
         SELECT al.uuid, al.title, al.artwork, al.release_date,
           u.name AS artist_name, ap.stage_name, COUNT(s.id) AS song_count
         FROM albums al
@@ -57,7 +57,7 @@ router.get('/', optionalAuth, async (req, res) => {
     }
 
     if (type === 'all' || type === 'playlists') {
-      const [playlists] = await pool.execute(`
+      const [playlists] = await pool.query(`
         SELECT p.uuid, p.title, p.artwork, p.total_songs,
           u.name AS creator_name, p.is_system
         FROM playlists p

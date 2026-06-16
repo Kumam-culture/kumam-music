@@ -15,10 +15,22 @@ const API = (() => {
   const request = async (method, path, data = null, isForm = false) => {
     const opts = { method, headers: headers(isForm) };
     if (data) opts.body = isForm ? data : JSON.stringify(data);
-    const res = await fetch(`${BASE}${path}`, opts);
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error || 'Request failed');
-    return json;
+    try {
+      const res = await fetch(`${BASE}${path}`, opts);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = json.error || `HTTP ${res.status}`;
+        console.error(`API ${method} ${path} failed:`, msg);
+        throw new Error(msg);
+      }
+      return json;
+    } catch (err) {
+      if (err.name === 'TypeError') {
+        console.error(`API ${method} ${path} network error:`, err.message);
+        throw new Error('Network error — is the server running?');
+      }
+      throw err;
+    }
   };
 
   return {

@@ -21,7 +21,7 @@ router.post('/login', async (req, res) => {
         password === ADMIN_PASSWORD;
       if (!isAdminPwd) return res.status(401).json({ error: 'Invalid credentials' });
 
-      const [rows] = await pool.execute('SELECT * FROM users WHERE email = ? AND role = "admin"', [email]);
+      const [rows] = await pool.query('SELECT * FROM users WHERE email = ? AND role = "admin"', [email]);
       if (!rows.length) return res.status(401).json({ error: 'Admin not found' });
 
       const token = jwt.sign({ userId: rows[0].id, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
@@ -31,7 +31,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const [rows] = await pool.execute('SELECT * FROM users WHERE email = ? AND is_active = TRUE', [email]);
+    const [rows] = await pool.query('SELECT * FROM users WHERE email = ? AND is_active = TRUE', [email]);
     if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' });
 
     const match = await bcrypt.compare(password, rows[0].password);
@@ -40,7 +40,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ userId: rows[0].id, role: rows[0].role }, JWT_SECRET, { expiresIn: '24h' });
 
     // Get subscription status
-    const [sub] = await pool.execute(
+    const [sub] = await pool.query(
       'SELECT * FROM subscriptions WHERE user_id = ? AND status = "active" AND end_date >= CURDATE() ORDER BY end_date DESC LIMIT 1',
       [rows[0].id]
     );
@@ -66,12 +66,12 @@ router.post('/register', async (req, res) => {
     if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password required' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
-    const [existing] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
     if (existing.length) return res.status(409).json({ error: 'Email already registered' });
 
     const hashed = await bcrypt.hash(password, 12);
     const uuid = uuidv4();
-    const [result] = await pool.execute(
+    const [result] = await pool.query(
       'INSERT INTO users (uuid, name, email, password, role, phone) VALUES (?,?,?,?,?,?)',
       [uuid, name, email, hashed, 'listener', phone || null]
     );
@@ -93,7 +93,7 @@ router.post('/register-artist', async (req, res) => {
     const { name, email, password, phone, stage_name, genre, bio } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password required' });
 
-    const [existing] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
     if (existing.length) return res.status(409).json({ error: 'Email already registered' });
 
     const hashed = await bcrypt.hash(password, 12);
@@ -134,7 +134,7 @@ router.post('/register-artist', async (req, res) => {
 // GET /api/auth/me
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const [sub] = await pool.execute(
+    const [sub] = await pool.query(
       'SELECT * FROM subscriptions WHERE user_id = ? AND status = "active" AND end_date >= CURDATE() LIMIT 1',
       [req.user.id]
     );
@@ -148,11 +148,11 @@ router.get('/me', authenticate, async (req, res) => {
 router.post('/change-password', authenticate, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const [rows] = await pool.execute('SELECT password FROM users WHERE id = ?', [req.user.id]);
+    const [rows] = await pool.query('SELECT password FROM users WHERE id = ?', [req.user.id]);
     const match = await bcrypt.compare(currentPassword, rows[0].password);
     if (!match) return res.status(401).json({ error: 'Current password is incorrect' });
     const hashed = await bcrypt.hash(newPassword, 12);
-    await pool.execute('UPDATE users SET password = ? WHERE id = ?', [hashed, req.user.id]);
+    await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashed, req.user.id]);
     res.json({ message: 'Password updated successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

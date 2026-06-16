@@ -185,9 +185,9 @@ const App = (() => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       navigate(link.dataset.page);
-      // Close sidebar on mobile
-      if (window.innerWidth < 900) {
+      if (window.innerWidth <= 768) {
         document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay')?.classList.remove('active');
       }
     });
   });
@@ -274,9 +274,16 @@ const App = (() => {
   };
 
   // ── Sidebar ──────────────────────────────────────────────
+  // Hamburger + overlay are handled in player.js to keep one listener
   const initSidebar = () => {
-    document.getElementById('hamburgerBtn').addEventListener('click', () => {
-      document.getElementById('sidebar').classList.toggle('open');
+    // Close sidebar when a nav link is clicked on mobile
+    document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          document.getElementById('sidebar').classList.remove('open');
+          document.getElementById('sidebarOverlay')?.classList.remove('active');
+        }
+      });
     });
   };
 
@@ -413,19 +420,31 @@ const App = (() => {
     if (!currentUser) return Auth.showSignIn();
     try {
       const token = localStorage.getItem('kumam_token');
-      const res = await fetch(`/api/songs/${uuid}/download`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`/api/songs/${uuid}/download`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!res.ok) {
-        const j = await res.json();
+        const j = await res.json().catch(() => ({}));
         return showNotification(j.error || 'Cannot download', 'error');
       }
+      // Extract filename from Content-Disposition header (set by server as Kumam_Music - ...)
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : `Kumam_Music - song.mp3`;
+
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = 'song.mp3';
-      document.body.appendChild(a); a.click();
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (e) { showNotification('Download failed', 'error'); }
+      showNotification(`Downloading: ${filename}`);
+    } catch (e) {
+      showNotification('Download failed', 'error');
+    }
   };
 
   // ── Artist song delete ────────────────────────────────────

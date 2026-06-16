@@ -265,6 +265,55 @@
   <span id="notificationMsg"></span>
 </div>
 
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- FULL-SCREEN MOBILE PLAYER -->
+<div class="player-fullscreen" id="playerFullscreen">
+  <div class="fs-drag-handle"></div>
+  <div class="fs-header">
+    <div class="fs-header-title">Now Playing</div>
+    <button class="fs-close-btn" id="fsCloseBtn"><i class="fas fa-chevron-down"></i></button>
+  </div>
+  <div class="fs-artwork" id="fsArtwork">
+    <img id="fsCover" src="/images/default-cover.svg" alt="Cover"/>
+  </div>
+  <div class="fs-info">
+    <div class="fs-title-block">
+      <div class="fs-title" id="fsTitle">No song playing</div>
+      <div class="fs-artist" id="fsArtist">—</div>
+    </div>
+    <button class="fs-like-btn" id="fsLikeBtn"><i class="far fa-heart"></i></button>
+  </div>
+  <div class="fs-progress">
+    <div class="fs-progress-bar" id="fsProgressBar">
+      <div class="fs-progress-fill" id="fsProgressFill"></div>
+      <div class="fs-progress-thumb"></div>
+    </div>
+    <div class="fs-times">
+      <span id="fsCurrentTime">0:00</span>
+      <span id="fsTotalTime">0:00</span>
+    </div>
+  </div>
+  <div class="fs-controls">
+    <button class="fs-btn" id="fsShuffleBtn" title="Shuffle"><i class="fas fa-random"></i></button>
+    <button class="fs-btn" id="fsPrevBtn"><i class="fas fa-step-backward"></i></button>
+    <button class="fs-btn fs-play-btn" id="fsPlayPauseBtn"><i class="fas fa-play"></i></button>
+    <button class="fs-btn" id="fsNextBtn"><i class="fas fa-step-forward"></i></button>
+    <button class="fs-btn" id="fsRepeatBtn" title="Repeat"><i class="fas fa-redo"></i></button>
+  </div>
+  <div class="fs-extras">
+    <div class="fs-volume">
+      <button class="fs-extra-btn" id="fsMuteBtn"><i class="fas fa-volume-up"></i></button>
+      <div class="fs-volume-bar" id="fsVolumeBar">
+        <div class="fs-volume-fill" id="fsVolumeFill" style="width:80%"></div>
+      </div>
+    </div>
+    <button class="fs-extra-btn" id="fsQueueBtn" title="Queue"><i class="fas fa-list"></i></button>
+    <button class="fs-extra-btn" id="fsDownloadBtn" style="display:none"><i class="fas fa-download"></i></button>
+  </div>
+</div>
+
 <audio id="audioElement"></audio>
 <script src="/js/api.js"></script>
 <script src="/js/player.js"></script>

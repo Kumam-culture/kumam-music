@@ -8,20 +8,20 @@ const adminOnly = [authenticate, requireRole('admin')];
 // GET /api/admin/dashboard
 router.get('/dashboard', ...adminOnly, async (req, res) => {
   try {
-    const [[users]] = await pool.execute('SELECT COUNT(*) AS total FROM users WHERE role = "listener"');
-    const [[artists]] = await pool.execute('SELECT COUNT(*) AS total FROM users WHERE role = "artist"');
-    const [[songs]] = await pool.execute('SELECT COUNT(*) AS total FROM songs WHERE is_published = TRUE');
-    const [[streams]] = await pool.execute('SELECT SUM(stream_count) AS total FROM songs');
-    const [[revenue]] = await pool.execute('SELECT SUM(amount) AS total FROM subscriptions WHERE status = "active"');
-    const [[pendingSubs]] = await pool.execute('SELECT COUNT(*) AS total FROM subscriptions WHERE status = "pending"');
+    const [[users]] = await pool.query('SELECT COUNT(*) AS total FROM users WHERE role = "listener"');
+    const [[artists]] = await pool.query('SELECT COUNT(*) AS total FROM users WHERE role = "artist"');
+    const [[songs]] = await pool.query('SELECT COUNT(*) AS total FROM songs WHERE is_published = TRUE');
+    const [[streams]] = await pool.query('SELECT SUM(stream_count) AS total FROM songs');
+    const [[revenue]] = await pool.query('SELECT SUM(amount) AS total FROM subscriptions WHERE status = "active"');
+    const [[pendingSubs]] = await pool.query('SELECT COUNT(*) AS total FROM subscriptions WHERE status = "pending"');
 
-    const [recentUsers] = await pool.execute(
+    const [recentUsers] = await pool.query(
       'SELECT id, uuid, name, email, role, created_at FROM users ORDER BY created_at DESC LIMIT 10'
     );
-    const [topSongs] = await pool.execute(
+    const [topSongs] = await pool.query(
       'SELECT s.title, u.name AS artist_name, s.stream_count FROM songs s JOIN users u ON s.artist_id = u.id ORDER BY s.stream_count DESC LIMIT 10'
     );
-    const [monthlyRevenue] = await pool.execute(`
+    const [monthlyRevenue] = await pool.query(`
       SELECT DATE_FORMAT(created_at,'%Y-%m') AS month, SUM(amount) AS revenue, COUNT(*) AS subscriptions
       FROM subscriptions WHERE status IN ('active','expired')
       GROUP BY month ORDER BY month DESC LIMIT 12
@@ -63,7 +63,7 @@ router.get('/users', ...adminOnly, async (req, res) => {
     if (search) { query += ' AND (u.name LIKE ? OR u.email LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
     query += ' ORDER BY u.created_at DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
-    const [users] = await pool.execute(query, params);
+    const [users] = await pool.query(query, params);
     res.json({ users });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -73,10 +73,10 @@ router.get('/users', ...adminOnly, async (req, res) => {
 // PUT /api/admin/users/:id/toggle-active
 router.put('/users/:id/toggle-active', ...adminOnly, async (req, res) => {
   try {
-    const [rows] = await pool.execute('SELECT is_active FROM users WHERE id = ?', [req.params.id]);
+    const [rows] = await pool.query('SELECT is_active FROM users WHERE id = ?', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'User not found' });
     const newStatus = !rows[0].is_active;
-    await pool.execute('UPDATE users SET is_active = ? WHERE id = ?', [newStatus, req.params.id]);
+    await pool.query('UPDATE users SET is_active = ? WHERE id = ?', [newStatus, req.params.id]);
     res.json({ message: `User ${newStatus ? 'activated' : 'deactivated'}`, is_active: newStatus });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -96,7 +96,7 @@ router.get('/songs', ...adminOnly, async (req, res) => {
     if (search) { query += ' WHERE s.title LIKE ? OR u.name LIKE ?'; params.push(`%${search}%`, `%${search}%`); }
     query += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit), parseInt(offset));
-    const [songs] = await pool.execute(query, params);
+    const [songs] = await pool.query(query, params);
     res.json({ songs });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -106,10 +106,10 @@ router.get('/songs', ...adminOnly, async (req, res) => {
 // PUT /api/admin/songs/:id/toggle-published
 router.put('/songs/:id/toggle-published', ...adminOnly, async (req, res) => {
   try {
-    const [rows] = await pool.execute('SELECT is_published FROM songs WHERE id = ?', [req.params.id]);
+    const [rows] = await pool.query('SELECT is_published FROM songs WHERE id = ?', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Song not found' });
     const newStatus = !rows[0].is_published;
-    await pool.execute('UPDATE songs SET is_published = ? WHERE id = ?', [newStatus, req.params.id]);
+    await pool.query('UPDATE songs SET is_published = ? WHERE id = ?', [newStatus, req.params.id]);
     res.json({ message: `Song ${newStatus ? 'published' : 'unpublished'}` });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -119,7 +119,7 @@ router.put('/songs/:id/toggle-published', ...adminOnly, async (req, res) => {
 // GET /api/admin/subscriptions
 router.get('/subscriptions', ...adminOnly, async (req, res) => {
   try {
-    const [subs] = await pool.execute(`
+    const [subs] = await pool.query(`
       SELECT s.*, u.name AS user_name, u.email, u.role
       FROM subscriptions s JOIN users u ON s.user_id = u.id
       ORDER BY s.created_at DESC LIMIT 100
@@ -133,7 +133,7 @@ router.get('/subscriptions', ...adminOnly, async (req, res) => {
 // PUT /api/admin/subscriptions/:id/approve
 router.put('/subscriptions/:id/approve', ...adminOnly, async (req, res) => {
   try {
-    const [subs] = await pool.execute('SELECT * FROM subscriptions WHERE id = ?', [req.params.id]);
+    const [subs] = await pool.query('SELECT * FROM subscriptions WHERE id = ?', [req.params.id]);
     if (!subs.length) return res.status(404).json({ error: 'Subscription not found' });
     const sub = subs[0];
     const startDate = new Date();
@@ -142,14 +142,14 @@ router.put('/subscriptions/:id/approve', ...adminOnly, async (req, res) => {
     else if (sub.plan === 'listener_premium') endDate.setMonth(endDate.getMonth() + 1);
     else endDate.setMonth(endDate.getMonth() + 1);
 
-    await pool.execute(
+    await pool.query(
       'UPDATE subscriptions SET status = "active", start_date = ?, end_date = ? WHERE id = ?',
       [startDate.toISOString().slice(0,10), endDate.toISOString().slice(0,10), sub.id]
     );
 
     // Activate artist account if pending
     if (sub.plan === 'artist_annual') {
-      await pool.execute('UPDATE users SET is_verified = TRUE WHERE id = ?', [sub.user_id]);
+      await pool.query('UPDATE users SET is_verified = TRUE WHERE id = ?', [sub.user_id]);
     }
 
     res.json({ message: 'Subscription approved and activated' });
@@ -161,7 +161,7 @@ router.put('/subscriptions/:id/approve', ...adminOnly, async (req, res) => {
 // DELETE /api/admin/songs/:id
 router.delete('/songs/:id', ...adminOnly, async (req, res) => {
   try {
-    await pool.execute('DELETE FROM songs WHERE id = ?', [req.params.id]);
+    await pool.query('DELETE FROM songs WHERE id = ?', [req.params.id]);
     res.json({ message: 'Song deleted' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -171,7 +171,7 @@ router.delete('/songs/:id', ...adminOnly, async (req, res) => {
 // DELETE /api/admin/users/:id
 router.delete('/users/:id', ...adminOnly, async (req, res) => {
   try {
-    await pool.execute('DELETE FROM users WHERE id = ? AND role != "admin"', [req.params.id]);
+    await pool.query('DELETE FROM users WHERE id = ? AND role != "admin"', [req.params.id]);
     res.json({ message: 'User deleted' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -181,7 +181,7 @@ router.delete('/users/:id', ...adminOnly, async (req, res) => {
 // GET /api/admin/earnings
 router.get('/earnings', ...adminOnly, async (req, res) => {
   try {
-    const [earnings] = await pool.execute(`
+    const [earnings] = await pool.query(`
       SELECT e.*, u.name AS artist_name, s.title AS song_title
       FROM earnings e
       JOIN users u ON e.artist_id = u.id
@@ -197,7 +197,7 @@ router.get('/earnings', ...adminOnly, async (req, res) => {
 // GET /api/admin/genres
 router.get('/genres', ...adminOnly, async (req, res) => {
   try {
-    const [genres] = await pool.execute('SELECT * FROM genres');
+    const [genres] = await pool.query('SELECT * FROM genres');
     res.json({ genres });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -208,7 +208,7 @@ router.get('/genres', ...adminOnly, async (req, res) => {
 router.post('/genres', ...adminOnly, async (req, res) => {
   try {
     const { name, slug, icon, color } = req.body;
-    await pool.execute('INSERT INTO genres (name, slug, icon, color) VALUES (?,?,?,?)', [name, slug, icon, color]);
+    await pool.query('INSERT INTO genres (name, slug, icon, color) VALUES (?,?,?,?)', [name, slug, icon, color]);
     res.status(201).json({ message: 'Genre added' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -219,27 +219,27 @@ router.post('/genres', ...adminOnly, async (req, res) => {
 router.post('/system-playlists/refresh', ...adminOnly, async (req, res) => {
   try {
     // Refresh trending playlist
-    const [trending] = await pool.execute('SELECT id FROM playlists WHERE title = "Trending" AND is_system = TRUE LIMIT 1');
+    const [trending] = await pool.query('SELECT id FROM playlists WHERE title = "Trending" AND is_system = TRUE LIMIT 1');
     if (trending.length) {
-      await pool.execute('DELETE FROM playlist_songs WHERE playlist_id = ?', [trending[0].id]);
-      const [topSongs] = await pool.execute(
+      await pool.query('DELETE FROM playlist_songs WHERE playlist_id = ?', [trending[0].id]);
+      const [topSongs] = await pool.query(
         'SELECT id FROM songs WHERE is_published = TRUE ORDER BY stream_count DESC LIMIT 20'
       );
       for (let i = 0; i < topSongs.length; i++) {
-        await pool.execute('INSERT IGNORE INTO playlist_songs (playlist_id, song_id, position) VALUES (?,?,?)',
+        await pool.query('INSERT IGNORE INTO playlist_songs (playlist_id, song_id, position) VALUES (?,?,?)',
           [trending[0].id, topSongs[i].id, i + 1]);
       }
     }
 
     // Refresh top 100
-    const [top100] = await pool.execute('SELECT id FROM playlists WHERE title = "Top 100" AND is_system = TRUE LIMIT 1');
+    const [top100] = await pool.query('SELECT id FROM playlists WHERE title = "Top 100" AND is_system = TRUE LIMIT 1');
     if (top100.length) {
-      await pool.execute('DELETE FROM playlist_songs WHERE playlist_id = ?', [top100[0].id]);
-      const [topSongs] = await pool.execute(
+      await pool.query('DELETE FROM playlist_songs WHERE playlist_id = ?', [top100[0].id]);
+      const [topSongs] = await pool.query(
         'SELECT id FROM songs WHERE is_published = TRUE ORDER BY stream_count DESC LIMIT 100'
       );
       for (let i = 0; i < topSongs.length; i++) {
-        await pool.execute('INSERT IGNORE INTO playlist_songs (playlist_id, song_id, position) VALUES (?,?,?)',
+        await pool.query('INSERT IGNORE INTO playlist_songs (playlist_id, song_id, position) VALUES (?,?,?)',
           [top100[0].id, topSongs[i].id, i + 1]);
       }
     }

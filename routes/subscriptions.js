@@ -18,7 +18,7 @@ router.get('/plans', (req, res) => {
 // GET /api/subscriptions/my-subscription
 router.get('/my-subscription', authenticate, async (req, res) => {
   try {
-    const [subs] = await pool.execute(
+    const [subs] = await pool.query(
       'SELECT * FROM subscriptions WHERE user_id = ? ORDER BY created_at DESC LIMIT 5',
       [req.user.id]
     );
@@ -57,7 +57,7 @@ router.post('/initiate', authenticate, async (req, res) => {
 
     const transactionRef = `KMM-${Date.now()}-${uuidv4().slice(0,8).toUpperCase()}`;
 
-    const [result] = await pool.execute(
+    const [result] = await pool.query(
       `INSERT INTO subscriptions (user_id, plan, status, amount, payment_method, payment_phone, transaction_ref)
        VALUES (?,?,?,?,?,?,?)`,
       [req.user.id, plan, 'pending', planInfo.amount, payment_method, payment_phone, transactionRef]
@@ -86,7 +86,7 @@ router.post('/initiate', authenticate, async (req, res) => {
 router.post('/verify', authenticate, async (req, res) => {
   try {
     const { transaction_ref } = req.body;
-    const [subs] = await pool.execute(
+    const [subs] = await pool.query(
       'SELECT * FROM subscriptions WHERE transaction_ref = ? AND user_id = ?',
       [transaction_ref, req.user.id]
     );
@@ -111,12 +111,12 @@ router.post('/verify', authenticate, async (req, res) => {
     const planInfo = PLANS[sub.plan];
     endDate.setMonth(endDate.getMonth() + planInfo.duration_months);
 
-    await pool.execute(
+    await pool.query(
       'UPDATE subscriptions SET status = "active", start_date = ?, end_date = ? WHERE id = ?',
       [startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10), sub.id]
     );
     if (sub.plan === 'artist_annual') {
-      await pool.execute('UPDATE users SET is_verified = TRUE WHERE id = ?', [req.user.id]);
+      await pool.query('UPDATE users SET is_verified = TRUE WHERE id = ?', [req.user.id]);
     }
 
     res.json({
@@ -136,7 +136,7 @@ router.post('/webhook', async (req, res) => {
     const { transaction_ref, status, provider } = req.body;
     if (!transaction_ref) return res.status(400).json({ error: 'Missing transaction ref' });
 
-    const [subs] = await pool.execute('SELECT * FROM subscriptions WHERE transaction_ref = ?', [transaction_ref]);
+    const [subs] = await pool.query('SELECT * FROM subscriptions WHERE transaction_ref = ?', [transaction_ref]);
     if (!subs.length) return res.status(404).json({ error: 'Transaction not found' });
     const sub = subs[0];
 
@@ -146,15 +146,15 @@ router.post('/webhook', async (req, res) => {
       const planInfo = PLANS[sub.plan];
       endDate.setMonth(endDate.getMonth() + planInfo.duration_months);
 
-      await pool.execute(
+      await pool.query(
         'UPDATE subscriptions SET status = "active", start_date = ?, end_date = ? WHERE id = ?',
         [startDate.toISOString().slice(0, 10), endDate.toISOString().slice(0, 10), sub.id]
       );
       if (sub.plan === 'artist_annual') {
-        await pool.execute('UPDATE users SET is_verified = TRUE WHERE id = ?', [sub.user_id]);
+        await pool.query('UPDATE users SET is_verified = TRUE WHERE id = ?', [sub.user_id]);
       }
     } else if (status === 'FAILED') {
-      await pool.execute('UPDATE subscriptions SET status = "cancelled" WHERE id = ?', [sub.id]);
+      await pool.query('UPDATE subscriptions SET status = "cancelled" WHERE id = ?', [sub.id]);
     }
 
     res.json({ received: true });

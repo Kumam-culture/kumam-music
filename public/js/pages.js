@@ -130,12 +130,25 @@ const Pages = (() => {
   const renderHome = async (container, user) => {
     container.innerHTML = loading();
     try {
-      const [songsRes, artistsRes, albumsRes, playlistsRes] = await Promise.all([
+      const [songsResult, artistsResult, albumsResult, playlistsResult] = await Promise.allSettled([
         API.getSongs({ limit: 12, sort: 'trending' }),
         API.getArtists({ limit: 8 }),
         API.getAlbums({ limit: 8 }),
         API.getPlaylists(),
       ]);
+
+      // Safely extract values — use empty fallback if any call failed
+      const songsRes    = songsResult.status    === 'fulfilled' ? songsResult.value    : { songs: [] };
+      const artistsRes  = artistsResult.status  === 'fulfilled' ? artistsResult.value  : { artists: [] };
+      const albumsRes   = albumsResult.status   === 'fulfilled' ? albumsResult.value   : { albums: [] };
+      const playlistsRes= playlistsResult.status=== 'fulfilled' ? playlistsResult.value: { playlists: [] };
+
+      // Log individual failures for debugging without crashing
+      [songsResult, artistsResult, albumsResult, playlistsResult].forEach((r, i) => {
+        if (r.status === 'rejected') {
+          console.warn(['songs','artists','albums','playlists'][i], 'failed:', r.reason?.message);
+        }
+      });
 
       const greetMsg = user ? `Welcome back, ${user.name.split(' ')[0]}!` : 'Music from the Heart of Kumam';
 
@@ -338,11 +351,14 @@ const Pages = (() => {
   const renderLibrary = async (container) => {
     container.innerHTML = loading();
     try {
-      const [likedRes, playlistsRes, followedRes] = await Promise.all([
+      const [likedResult, playlistsResult, followedResult] = await Promise.allSettled([
         API.getLikedSongs(),
         API.getMyPlaylists(),
         API.getFollowedArtists(),
       ]);
+      const likedRes    = likedResult.status    === 'fulfilled' ? likedResult.value    : { songs: [] };
+      const playlistsRes= playlistsResult.status=== 'fulfilled' ? playlistsResult.value: { playlists: [] };
+      const followedRes = followedResult.status === 'fulfilled' ? followedResult.value : { artists: [] };
       container.innerHTML = `
         <div class="section">
           <div class="section-header"><h2 class="section-title"><i class="fas fa-book-open"></i> My Library</h2></div>
@@ -440,7 +456,9 @@ const Pages = (() => {
   const renderPlaylists = async (container) => {
     container.innerHTML = loading();
     try {
-      const [myRes, sysRes] = await Promise.all([API.getMyPlaylists(), API.getPlaylists()]);
+      const [myResult, sysResult] = await Promise.allSettled([API.getMyPlaylists(), API.getPlaylists()]);
+      const myRes  = myResult.status  === 'fulfilled' ? myResult.value  : { playlists: [] };
+      const sysRes = sysResult.status === 'fulfilled' ? sysResult.value : { playlists: [] };
       container.innerHTML = `
         <div class="section">
           <div class="section-header">
@@ -594,7 +612,10 @@ const Pages = (() => {
   const renderProfile = async (container) => {
     container.innerHTML = loading();
     try {
-      const [profileRes, subRes] = await Promise.all([API.getProfile(), API.getMySubscription()]);
+      const [profileResult, subResult] = await Promise.allSettled([API.getProfile(), API.getMySubscription()]);
+      if (profileResult.status === 'rejected') throw profileResult.reason;
+      const profileRes = profileResult.value;
+      const subRes = subResult.status === 'fulfilled' ? subResult.value : { active: null };
       const u = profileRes.user;
       const sub = subRes.active;
       const av = u.avatar ? `/uploads/profiles/${u.avatar}` : null;

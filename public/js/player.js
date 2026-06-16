@@ -168,16 +168,20 @@ const Player = (() => {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) {
-        const j = await res.json();
+        const j = await res.json().catch(() => ({}));
         return App.showNotification(j.error || 'Cannot download', 'error');
       }
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : `Kumam_Music - ${song.title}.mp3`;
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `${song.title}.mp3`;
+      a.href = url; a.download = filename;
       document.body.appendChild(a); a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      App.showNotification(`Downloading: ${filename}`);
     } catch (e) {
       App.showNotification('Download failed', 'error');
     }
@@ -291,12 +295,165 @@ const Player = (() => {
     queuePanel.classList.add('hidden');
   });
 
+  // ── MOBILE FULL-SCREEN PLAYER ────────────────────────────
+  const fsEl         = document.getElementById('playerFullscreen');
+  const fsCover      = document.getElementById('fsCover');
+  const fsTitle      = document.getElementById('fsTitle');
+  const fsArtist     = document.getElementById('fsArtist');
+  const fsArtwork    = document.getElementById('fsArtwork');
+  const fsPlayPause  = document.getElementById('fsPlayPauseBtn');
+  const fsPrev       = document.getElementById('fsPrevBtn');
+  const fsNext       = document.getElementById('fsNextBtn');
+  const fsShuffle    = document.getElementById('fsShuffleBtn');
+  const fsRepeat     = document.getElementById('fsRepeatBtn');
+  const fsLike       = document.getElementById('fsLikeBtn');
+  const fsProgressBar= document.getElementById('fsProgressBar');
+  const fsProgressFill=document.getElementById('fsProgressFill');
+  const fsCurrentTime= document.getElementById('fsCurrentTime');
+  const fsTotalTime  = document.getElementById('fsTotalTime');
+  const fsVolumeBar  = document.getElementById('fsVolumeBar');
+  const fsVolumeFill = document.getElementById('fsVolumeFill');
+  const fsMuteBtn    = document.getElementById('fsMuteBtn');
+  const fsDownloadBtn= document.getElementById('fsDownloadBtn');
+
+  const openFullscreen = () => {
+    if (window.innerWidth <= 768) fsEl.classList.add('open');
+  };
+  const closeFullscreen = () => fsEl.classList.remove('open');
+
+  document.getElementById('fsCloseBtn').addEventListener('click', closeFullscreen);
+  document.getElementById('playerArtwork').addEventListener('click', () => {
+    if (window.innerWidth <= 768 && queue.length) openFullscreen();
+  });
+
+  // Sync fullscreen UI with player state
+  const syncFS = () => {
+    if (!queue[currentIndex]) return;
+    const song = queue[currentIndex];
+    fsCover.src  = getArtwork(song);
+    fsTitle.textContent  = song.title;
+    fsArtist.textContent = song.stage_name || song.artist_name || '—';
+    fsPlayPause.querySelector('i').className = isPlaying ? 'fas fa-pause' : 'fas fa-play';
+    fsLike.querySelector('i').className = song.liked ? 'fas fa-heart' : 'far fa-heart';
+    fsLike.classList.toggle('liked', !!song.liked);
+    fsArtwork.classList.toggle('playing', isPlaying);
+    if (song.is_downloadable) {
+      fsDownloadBtn.style.display = 'block';
+      fsDownloadBtn.onclick = () => downloadSong(song);
+    } else {
+      fsDownloadBtn.style.display = 'none';
+    }
+  };
+
+  // FS controls mirror main player
+  fsPlayPause.addEventListener('click', toggle);
+  fsPrev.addEventListener('click', prev);
+  fsNext.addEventListener('click', next);
+  fsShuffle.addEventListener('click', () => {
+    isShuffle = !isShuffle;
+    shuffleBtn.classList.toggle('active', isShuffle);
+    fsShuffle.classList.toggle('active', isShuffle);
+  });
+  fsRepeat.addEventListener('click', () => {
+    repeatMode = (repeatMode + 1) % 3;
+    const active = repeatMode > 0;
+    repeatBtn.classList.toggle('active', active);
+    fsRepeat.classList.toggle('active', active);
+    fsRepeat.querySelector('i').className = repeatMode === 2 ? 'fas fa-redo-alt' : 'fas fa-redo';
+  });
+
+  // FS like button
+  fsLike.addEventListener('click', async () => {
+    const user = typeof App !== 'undefined' ? App.getUser() : null;
+    if (!user) return;
+    const song = queue[currentIndex];
+    if (!song) return;
+    try {
+      const res = await API.likeSong(song.uuid);
+      song.liked = res.liked;
+      fsLike.querySelector('i').className = res.liked ? 'fas fa-heart' : 'far fa-heart';
+      fsLike.classList.toggle('liked', res.liked);
+      likeBtn.querySelector('i').className = res.liked ? 'fas fa-heart' : 'far fa-heart';
+      likeBtn.style.color = res.liked ? 'var(--accent)' : '';
+    } catch (e) {}
+  });
+
+  // FS progress bar
+  fsProgressBar.addEventListener('click', (e) => {
+    if (!audio.duration) return;
+    const rect = fsProgressBar.getBoundingClientRect();
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+  });
+
+  // FS volume
+  fsVolumeBar.addEventListener('click', (e) => {
+    const rect = fsVolumeBar.getBoundingClientRect();
+    setVolume((e.clientX - rect.left) / rect.width);
+    fsVolumeFill.style.width = `${volume * 100}%`;
+  });
+  fsMuteBtn.addEventListener('click', () => {
+    if (isMuted) { setVolume(volume || 0.8); }
+    else { audio.volume = 0; isMuted = true; fsVolumeFill.style.width = '0%'; }
+    fsMuteBtn.querySelector('i').className = isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+  });
+
+  // FS queue button
+  document.getElementById('fsQueueBtn').addEventListener('click', () => {
+    closeFullscreen();
+    document.getElementById('queuePanel').classList.toggle('hidden');
+    renderQueue();
+  });
+
+  // Sync FS progress with audio
+  audio.addEventListener('timeupdate', () => {
+    if (!audio.duration) return;
+    const pct = (audio.currentTime / audio.duration) * 100;
+    fsProgressFill.style.width = `${pct}%`;
+    fsCurrentTime.textContent = formatTime(audio.currentTime);
+    // Update mini progress bar CSS variable
+    document.querySelector('.player')?.style.setProperty('--mini-progress', `${pct}%`);
+  });
+  audio.addEventListener('loadedmetadata', () => {
+    fsTotalTime.textContent = formatTime(audio.duration);
+  });
+  audio.addEventListener('play',  () => {
+    fsPlayPause.querySelector('i').className = 'fas fa-pause';
+    fsArtwork.classList.add('playing');
+  });
+  audio.addEventListener('pause', () => {
+    fsPlayPause.querySelector('i').className = 'fas fa-play';
+    fsArtwork.classList.remove('playing');
+  });
+
+  // Sidebar overlay
+  document.getElementById('sidebarOverlay')?.addEventListener('click', () => {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+  });
+  document.getElementById('hamburgerBtn').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+  });
+
   // Set initial volume
   audio.volume = volume;
   setVolume(volume);
 
+  // Patch updateUI to also sync fullscreen
+  const _origUpdateUI = updateUI;
+  // (updateUI is already defined above, we extend it by calling syncFS after)
+  audio.addEventListener('play',  syncFS);
+  audio.addEventListener('pause', syncFS);
+
+  // Patch play to also sync fullscreen after loading
+  const _origPlay = play;
+  const playAndSync = async (song, queueSongs) => {
+    await _origPlay(song, queueSongs);
+    syncFS();
+  };
+
   return {
-    play,
+    play: playAndSync,
     toggle,
     next,
     prev,
@@ -306,5 +463,7 @@ const Player = (() => {
     getCurrent: () => queue[currentIndex],
     isPlaying: () => isPlaying,
     getArtwork,
+    openFullscreen,
+    closeFullscreen,
   };
 })();
