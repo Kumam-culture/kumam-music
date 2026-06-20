@@ -29,6 +29,10 @@
     <a href="#" class="nav-link auth-required" data-page="liked"><i class="fas fa-heart"></i><span>Liked Songs</span></a>
     <a href="#" class="nav-link auth-required" data-page="playlists"><i class="fas fa-list-music"></i><span>Playlists</span></a>
     <a href="#" class="nav-link auth-required" data-page="history"><i class="fas fa-history"></i><span>History</span></a>
+    <a href="#" class="nav-link auth-required" data-page="notifications-page" id="navNotifLink">
+      <i class="fas fa-bell"></i><span>Notifications</span>
+      <span class="notif-badge hidden" id="navNotifBadge">0</span>
+    </a>
     <div class="nav-divider"></div>
     <a href="#" class="nav-link artist-only" data-page="artist-dashboard"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
     <a href="#" class="nav-link artist-only" data-page="upload"><i class="fas fa-upload"></i><span>Upload</span></a>
@@ -233,6 +237,12 @@
         <input type="tel" id="paymentPhone" placeholder="e.g. 0761234567" required/>
         <small class="mtn-hint">MTN: 076/078/077 &nbsp;|&nbsp; Airtel: 070/071/072</small>
       </div>
+      <div id="termsCheckRow" class="hidden" style="margin-bottom:14px">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-secondary)">
+          <input type="checkbox" id="subTermsCheck" style="margin-top:3px;accent-color:var(--accent);flex-shrink:0"/>
+          <span>I have read and agree to the <a href="#" onclick="event.preventDefault();document.getElementById('termsOverlay').classList.remove('hidden')" style="color:var(--accent);font-weight:600">Terms & Conditions</a> for Artist Payment Registration. I understand the UGX 15,000 fee is non-refundable.</span>
+        </label>
+      </div>
       <button type="submit" class="btn btn-primary btn-full" id="paymentSubmit">
         <span>Pay Now</span><i class="fas fa-spinner fa-spin hidden"></i>
       </button>
@@ -259,8 +269,149 @@
   </div>
 </div>
 
+<!-- SHARE MODAL -->
+<div class="modal-overlay hidden" id="shareOverlay">
+  <div class="modal small-modal" id="shareModal">
+    <button class="modal-close" onclick="document.getElementById('shareOverlay').classList.add('hidden')">
+      <i class="fas fa-times"></i>
+    </button>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:54px;height:54px;background:var(--accent-glow);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:22px;color:var(--accent)">
+        <i class="fas fa-share-alt"></i>
+      </div>
+      <h3 id="shareModalTitle" style="font-size:18px;margin-bottom:4px">Share</h3>
+      <p id="shareModalSubtitle" style="color:var(--text-muted);font-size:13px"></p>
+    </div>
+    <div class="share-link-box">
+      <input type="text" id="shareLinkInput" readonly style="background:var(--bg-primary);border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-primary);width:100%;font-size:13px;outline:none"/>
+      <button class="btn btn-primary btn-sm" id="copyLinkBtn" onclick="App.copyShareLink()">
+        <i class="fas fa-copy"></i> Copy
+      </button>
+    </div>
+    <div class="share-options">
+      <a id="shareWhatsApp" href="#" target="_blank" class="share-btn whatsapp">
+        <i class="fab fa-whatsapp"></i> WhatsApp
+      </a>
+      <a id="shareFacebook" href="#" target="_blank" class="share-btn facebook">
+        <i class="fab fa-facebook"></i> Facebook
+      </a>
+      <a id="shareTwitter" href="#" target="_blank" class="share-btn twitter">
+        <i class="fab fa-twitter"></i> Twitter
+      </a>
+      <button class="share-btn native" id="shareNativeBtn" onclick="App.nativeShare()">
+        <i class="fas fa-share"></i> Share
+      </button>
+    </div>
+    <div id="shareCopiedMsg" class="hidden" style="text-align:center;color:var(--green);font-size:13px;margin-top:12px">
+      <i class="fas fa-check"></i> Link copied to clipboard!
+    </div>
+  </div>
+</div>
+
+<!-- DONATION MODAL -->
+<div class="modal-overlay hidden" id="donationOverlay">
+  <div class="modal small-modal" id="donationModal">
+    <button class="modal-close" onclick="document.getElementById('donationOverlay').classList.add('hidden')">
+      <i class="fas fa-times"></i>
+    </button>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:36px;margin-bottom:10px">💝</div>
+      <h3 style="font-size:18px;margin-bottom:4px">Support <span id="donationArtistName"></span></h3>
+      <p style="color:var(--text-muted);font-size:13px">85% goes directly to the artist · 15% platform fee</p>
+    </div>
+    <div id="donationError" class="alert alert-error hidden"></div>
+    <div id="donationSuccess" class="alert alert-success hidden"></div>
+    <form id="donationForm">
+      <input type="hidden" id="donationArtistUuid"/>
+      <div class="form-group">
+        <label>Donation Amount (UGX)</label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
+          <button type="button" class="donation-preset btn btn-outline btn-sm" data-amount="1000">1,000</button>
+          <button type="button" class="donation-preset btn btn-outline btn-sm" data-amount="2000">2,000</button>
+          <button type="button" class="donation-preset btn btn-outline btn-sm" data-amount="5000">5,000</button>
+          <button type="button" class="donation-preset btn btn-outline btn-sm" data-amount="10000">10,000</button>
+        </div>
+        <input type="number" id="donationAmount" placeholder="Or enter custom amount (min 500)" min="500"/>
+      </div>
+      <div class="form-group">
+        <label>Message (optional)</label>
+        <input type="text" id="donationMessage" placeholder="Leave a kind message for the artist..." maxlength="200"/>
+      </div>
+      <div class="form-group">
+        <label>Payment Method</label>
+        <div class="payment-methods">
+          <label class="payment-option">
+            <input type="radio" name="don_method" value="mtn" required/>
+            <div class="payment-card mtn"><img src="/images/mtn-logo.svg" alt="MTN"/><span>MTN MoMo</span></div>
+          </label>
+          <label class="payment-option">
+            <input type="radio" name="don_method" value="airtel"/>
+            <div class="payment-card airtel"><img src="/images/airtel-logo.svg" alt="Airtel"/><span>Airtel Money</span></div>
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Mobile Money Number</label>
+        <input type="tel" id="donationPhone" placeholder="e.g. 0761234567" required/>
+      </div>
+      <div id="donationBreakdown" class="hidden" style="background:var(--bg-primary);border-radius:8px;padding:12px;font-size:13px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="color:var(--text-muted)">Artist receives (85%)</span>
+          <span id="breakdownArtist" style="color:var(--green);font-weight:700"></span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text-muted)">Platform fee (15%)</span>
+          <span id="breakdownFee" style="color:var(--text-muted)"></span>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="donationSubmitBtn">
+        <span>Send Donation</span><i class="fas fa-spinner fa-spin hidden"></i>
+      </button>
+    </form>
+    <div id="donationPending" class="hidden" style="text-align:center;padding:20px 0">
+      <div style="font-size:40px;margin-bottom:12px;animation:pulse 1.5s infinite">📱</div>
+      <h4>Awaiting Payment</h4>
+      <p id="donationPendingMsg" style="color:var(--text-muted);font-size:13px;margin:10px 0"></p>
+      <button class="btn btn-outline btn-sm" id="checkDonationBtn">Check Status</button>
+    </div>
+  </div>
+</div>
+
+<!-- TERMS & CONDITIONS MODAL -->
+<div class="modal-overlay hidden" id="termsOverlay">
+  <div class="modal" id="termsModal" style="max-width:560px">
+    <button class="modal-close" onclick="document.getElementById('termsOverlay').classList.add('hidden')">
+      <i class="fas fa-times"></i>
+    </button>
+    <h3 style="font-size:18px;margin-bottom:4px"><i class="fas fa-file-contract" style="color:var(--accent)"></i> Terms & Conditions</h3>
+    <p style="color:var(--text-muted);font-size:12px;margin-bottom:16px">Kumam Music Artist Payment Agreement</p>
+    <div class="terms-body" id="termsBody">
+      <p><strong>1. Payment Registration</strong><br/>By registering for payments, you agree to provide accurate banking and mobile money details. Kumam Music will use these details to disburse your earnings.</p>
+      <p><strong>2. Earnings & Royalties</strong><br/>Artists earn UGX 0.001 per stream. Earnings are calculated monthly and disbursed upon request when the minimum threshold of UGX 10,000 is reached.</p>
+      <p><strong>3. Donations</strong><br/>Artists receive 85% of all donations. Kumam Music retains 15% as a platform service fee to cover payment processing and operations.</p>
+      <p><strong>4. One-Time Registration Fee</strong><br/>The UGX 15,000 artist payment registration fee is non-refundable and covers account verification and payment infrastructure setup.</p>
+      <p><strong>5. Content Ownership</strong><br/>Artists retain full copyright of their music. By uploading, you grant Kumam Music a non-exclusive licence to stream and promote your content on the platform.</p>
+      <p><strong>6. Prohibited Content</strong><br/>You must not upload content that infringes third-party rights, contains hate speech, or violates Ugandan law. Violation results in immediate account suspension without refund.</p>
+      <p><strong>7. Account Suspension</strong><br/>Kumam Music reserves the right to suspend accounts for policy violations. Pending earnings will be forfeited upon suspension for serious violations.</p>
+      <p><strong>8. Updates</strong><br/>These terms may be updated. Continued use of the platform constitutes acceptance of updated terms. Significant changes will be communicated via the notification system.</p>
+      <p style="color:var(--text-muted);font-size:12px;margin-top:16px">Last updated: January 2025. Contact williamekidu@gmail.com for questions.</p>
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;margin-top:16px;cursor:pointer;font-size:14px">
+      <input type="checkbox" id="termsCheckbox" style="width:18px;height:18px;accent-color:var(--accent)"/>
+      I have read and agree to the Terms & Conditions
+    </label>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-outline" onclick="document.getElementById('termsOverlay').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-primary" id="termsAcceptBtn" disabled onclick="App.acceptTermsAndProceed()">Accept & Continue</button>
+    </div>
+  </div>
+</div>
+
 <!-- NOTIFICATION -->
 <div class="notification hidden" id="notification">
+  <i class="fas fa-check-circle"></i>
+  <span id="notificationMsg"></span>
+</div>
   <i class="fas fa-check-circle"></i>
   <span id="notificationMsg"></span>
 </div>

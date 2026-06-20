@@ -101,11 +101,11 @@ router.post('/register-artist', async (req, res) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      const [result] = await conn.execute(
+      const [result] = await conn.query(
         'INSERT INTO users (uuid, name, email, password, role, phone, bio) VALUES (?,?,?,?,?,?,?)',
         [uuid, name, email, hashed, 'artist', phone || null, bio || null]
       );
-      await conn.execute(
+      await conn.query(
         'INSERT INTO artist_profiles (user_id, stage_name, genre) VALUES (?,?,?)',
         [result.insertId, stage_name || name, genre || null]
       );

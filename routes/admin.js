@@ -251,3 +251,30 @@ router.post('/system-playlists/refresh', ...adminOnly, async (req, res) => {
 });
 
 module.exports = router;
+
+// GET /api/admin/donations
+router.get('/donations', ...adminOnly, async (req, res) => {
+  try {
+    const [donations] = await pool.query(`
+      SELECT d.*,
+        u1.name AS donor_name, u1.email AS donor_email,
+        u2.name AS artist_name
+      FROM donations d
+      LEFT JOIN users u1 ON d.donor_id = u1.id
+      JOIN users u2 ON d.artist_id = u2.id
+      ORDER BY d.created_at DESC LIMIT 200
+    `);
+    const [[totals]] = await pool.query(`
+      SELECT
+        COUNT(*) AS total_count,
+        COALESCE(SUM(amount),0) AS total_amount,
+        COALESCE(SUM(admin_commission),0) AS total_commission,
+        COALESCE(SUM(artist_amount),0) AS total_artist_earnings
+      FROM donations WHERE status = 'completed'
+    `);
+    res.json({ donations, totals });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});

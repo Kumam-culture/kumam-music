@@ -248,3 +248,48 @@ CREATE TABLE IF NOT EXISTS notification_dismissals (
   FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- ── Share links (track clicks) ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS share_links (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  uuid VARCHAR(36) UNIQUE NOT NULL,
+  type ENUM('song','album','artist','playlist','site') NOT NULL,
+  ref_uuid VARCHAR(36) DEFAULT NULL,
+  ref_title VARCHAR(200) DEFAULT NULL,
+  click_count INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── Donations ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS donations (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  uuid VARCHAR(36) UNIQUE NOT NULL,
+  donor_id INT DEFAULT NULL,
+  artist_id INT NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  admin_commission DECIMAL(10,2) NOT NULL,
+  artist_amount DECIMAL(10,2) NOT NULL,
+  payment_method ENUM('mtn','airtel') NOT NULL,
+  payment_phone VARCHAR(20) NOT NULL,
+  transaction_ref VARCHAR(100) UNIQUE DEFAULT NULL,
+  message TEXT DEFAULT NULL,
+  status ENUM('pending','completed','failed') DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (donor_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (artist_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Add terms_accepted to users
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMP NULL DEFAULT NULL;
+
+-- Add payment_registered to artist_profiles (artist subscription for payment only)
+ALTER TABLE artist_profiles ADD COLUMN IF NOT EXISTS payment_registered BOOLEAN DEFAULT FALSE;
+ALTER TABLE artist_profiles ADD COLUMN IF NOT EXISTS payment_registered_at TIMESTAMP NULL DEFAULT NULL;
+
+-- Update subscriptions plan enum to include listener tiers
+ALTER TABLE subscriptions MODIFY COLUMN plan ENUM(
+  'listener_basic','listener_premium','listener_premium_annual',
+  'artist_payment_registration','artist_annual'
+) NOT NULL;
+

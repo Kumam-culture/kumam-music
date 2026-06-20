@@ -142,7 +142,43 @@ router.post('/upload', authenticate, requireRole('artist'),
          VALUES (?,?,?,?,?,?,?,?,?,?,TRUE,?)`,
         [uuid, req.user.id, albumIdVal, title, filePath, artworkPath, genreIdVal, lyrics||null, downloadable, premium, trackNum]
       );
-      res.status(201).json({ message: 'Song uploaded successfully', songId: result.insertId, uuid });
+      const newSongId = result.insertId;
+
+      // Auto-add to system playlists: New Releases + Trending
+      try {
+        const [sysPls] = await pool.query(
+          "SELECT id, title FROM playlists WHERE is_system = TRUE AND title IN ('New Releases','Trending')"
+        );
+        for (const pl of sysPls) {
+          const [[mx]] = await pool.query(
+            'SELECT COALESCE(MAX(position),0) AS pos FROM playlist_songs WHERE playlist_id = ?', [pl.id]
+          );
+          await pool.query(
+            'INSERT IGNORE INTO playlist_songs (playlist_id, song_id, position) VALUES (?,?,?)',
+            [pl.id, newSongId, mx.pos + 1]
+          );
+          await pool.query(
+            'UPDATE playlists SET total_songs = total_songs + 1 WHERE id = ?', [pl.id]
+          );
+          // Cap New Releases at 50 most recent
+          if (pl.title === 'New Releases') {
+            await pool.query(`
+              DELETE FROM playlist_songs
+              WHERE playlist_id = ?
+                AND song_id NOT IN (
+                  SELECT song_id FROM (
+                    SELECT song_id FROM playlist_songs
+                    WHERE playlist_id = ?
+                    ORDER BY added_at DESC LIMIT 50
+                  ) t
+                )`, [pl.id, pl.id]);
+          }
+        }
+      } catch (plErr) {
+        console.warn('Playlist auto-add warning:', plErr.message);
+      }
+
+      res.status(201).json({ message: 'Song uploaded successfully', songId: newSongId, uuid });
     } catch (err) {
       console.error('upload error:', err.sqlMessage || err.message);
       res.status(500).json({ error: 'Server error' });

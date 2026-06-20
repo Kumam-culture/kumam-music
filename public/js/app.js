@@ -1,12 +1,16 @@
 // app.js — Main application controller
 const App = (() => {
-  let currentUser = null;
-  let currentPage = null;
-  let allSongs = []; // cache for play-from-row
-  let currentSongUuid = null; // for add-to-playlist
+  let currentUser   = null;
+  let currentPage   = null;
+  let allSongs      = [];
+  let currentSongUuid = null;
+  let _shareData    = null;
+  let _donationRef  = null;
+  let _termsCallback= null;
 
-  // ── State ────────────────────────────────────────────────
+  // ── Getters ──────────────────────────────────────────────
   const getUser = () => currentUser;
+
   const setUser = (u) => {
     currentUser = u;
     updateNavForUser(u);
@@ -14,6 +18,7 @@ const App = (() => {
     else {
       const banner = document.getElementById('notificationsBanner');
       if (banner) { banner.innerHTML = ''; banner.classList.add('hidden'); }
+      updateNotifBadge(0);
     }
   };
 
@@ -23,33 +28,35 @@ const App = (() => {
     if (token) {
       try {
         const res = await API.getMe();
-        setUser(res.user);
+        currentUser = res.user;           // set directly to avoid double-loading
       } catch (e) {
         localStorage.removeItem('kumam_token');
       }
     }
     updateNavForUser(currentUser);
+    if (currentUser) loadNotifications();
     navigate('home');
     initSearch();
     initSidebar();
     initPlaylistModal();
+    initModals();
+    window.addEventListener('load', handleShareLink);
   };
 
   // ── Navigation ───────────────────────────────────────────
   const navigate = async (page) => {
     currentPage = page;
     const content = document.getElementById('pageContent');
+    if (!content) return;
 
-    // Update active nav
     document.querySelectorAll('.nav-link[data-page]').forEach(l => {
       l.classList.toggle('active', l.dataset.page === page);
     });
 
-    // Route
-    if (page === 'home') await Pages.renderHome(content, currentUser);
-    else if (page === 'discover') await Pages.renderDiscover(content);
-    else if (page === 'genres') await Pages.renderGenres(content);
-    else if (page === 'charts') await Pages.renderCharts(content);
+    if (page === 'home')        await Pages.renderHome(content, currentUser);
+    else if (page === 'discover')    await Pages.renderDiscover(content);
+    else if (page === 'genres')      await Pages.renderGenres(content);
+    else if (page === 'charts')      await Pages.renderCharts(content);
     else if (page === 'library') {
       if (!requireAuth()) return;
       await Pages.renderLibrary(content);
@@ -78,22 +85,26 @@ const App = (() => {
       if (!requireAuth()) return;
       Pages.renderSubscription(content);
     }
+    else if (page === 'notifications-page') {
+      if (!requireAuth()) return;
+      await Pages.renderNotificationsPage(content);
+      updateNotifBadge(0);
+    }
     else if (page === 'artist-dashboard') {
       if (!requireAuth(['artist'])) return;
       await Pages.renderArtistDashboard(content);
     }
     else if (page === 'upload') {
       if (!requireAuth(['artist'])) return;
-      // Check artist subscription
-      if (currentUser?.role === 'artist') {
-        try {
-          const subRes = await API.getMySubscription();
-          if (!subRes.active) {
-            Auth.showSubscription('artist_annual', 'Activate Artist Account', 'You need an active subscription to upload music.');
-            return;
-          }
-        } catch (e) {}
-      }
+      try {
+        const subRes = await API.getMySubscription();
+        if (!subRes.payment_registered) {
+          Auth.showSubscription('artist_payment_registration',
+            'Register for Payments First',
+            'You need to register for payments (UGX 15,000 one-time) before uploading music.');
+          return;
+        }
+      } catch (e) {}
       await Pages.renderUpload(content);
     }
     else if (page === 'my-songs') {
@@ -102,7 +113,7 @@ const App = (() => {
     }
     else if (page === 'my-albums') {
       if (!requireAuth(['artist'])) return;
-      content.innerHTML = '<div class="section"><p class="text-muted">Loading albums…</p></div>';
+      content.innerHTML = '<div class="section"><div class="loading-spinner"><div class="spinner"></div></div></div>';
       try {
         const res = await API.getMyAlbums();
         content.innerHTML = `
@@ -112,7 +123,7 @@ const App = (() => {
               <button class="btn btn-primary btn-sm" onclick="App.navigate('upload')"><i class="fas fa-plus"></i> New Album</button>
             </div>
             <div class="albums-grid">
-              ${(res.albums||[]).map(al => Pages.albumCard(al)).join('') || '<p class="text-muted">No albums yet. Create one from the upload page.</p>'}
+              ${(res.albums||[]).map(al => Pages.albumCard(al)).join('') || '<p class="text-muted">No albums yet.</p>'}
             </div>
           </div>`;
       } catch (e) { content.innerHTML = `<p style="color:var(--red);padding:32px">${e.message}</p>`; }
@@ -121,37 +132,19 @@ const App = (() => {
       if (!requireAuth(['admin'])) return;
       await Pages.renderAdmin(content);
     }
-    else if (page.startsWith('artist:')) {
-      const uuid = page.split(':')[1];
-      await Pages.renderArtist(content, uuid);
-    }
-    else if (page.startsWith('album:')) {
-      const uuid = page.split(':')[1];
-      await Pages.renderAlbum(content, uuid);
-    }
-    else if (page.startsWith('playlist:')) {
-      const uuid = page.split(':')[1];
-      await Pages.renderPlaylist(content, uuid);
-    }
-    else if (page.startsWith('genre:')) {
-      const slug = page.split(':')[1];
-      await Pages.renderGenreDetail(content, slug);
-    }
-    else {
-      content.innerHTML = `<div class="section"><p class="text-muted">Page not found</p></div>`;
-    }
+    else if (page.startsWith('artist:'))   await Pages.renderArtist(content, page.split(':')[1]);
+    else if (page.startsWith('album:'))    await Pages.renderAlbum(content, page.split(':')[1]);
+    else if (page.startsWith('playlist:')) await Pages.renderPlaylist(content, page.split(':')[1]);
+    else if (page.startsWith('genre:'))    await Pages.renderGenreDetail(content, page.split(':')[1]);
+    else content.innerHTML = `<div class="section"><p class="text-muted">Page not found</p></div>`;
 
     content.scrollTop = 0;
   };
 
   const requireAuth = (roles = []) => {
-    if (!currentUser) {
-      Auth.showSignIn();
-      return false;
-    }
+    if (!currentUser) { Auth.showSignIn(); return false; }
     if (roles.length && !roles.includes(currentUser.role)) {
-      showNotification('Access denied', 'error');
-      return false;
+      showNotification('Access denied', 'error'); return false;
     }
     return true;
   };
@@ -159,39 +152,32 @@ const App = (() => {
   // ── Nav updates ──────────────────────────────────────────
   const updateNavForUser = (user) => {
     const guestEl = document.getElementById('guestActions');
-    const userEl = document.getElementById('userMenu');
-    const nameEl = document.getElementById('userNameDisplay');
-    const imgEl = document.getElementById('userAvatarImg');
+    const userEl  = document.getElementById('userMenu');
+    const nameEl  = document.getElementById('userNameDisplay');
+    const imgEl   = document.getElementById('userAvatarImg');
 
     if (user) {
-      guestEl.classList.add('hidden');
-      userEl.classList.remove('hidden');
-      nameEl.textContent = user.name.split(' ')[0];
-      imgEl.src = user.avatar ? `/uploads/profiles/${user.avatar}` : '/images/default-avatar.svg';
+      guestEl?.classList.add('hidden');
+      userEl?.classList.remove('hidden');
+      if (nameEl) nameEl.textContent = user.name.split(' ')[0];
+      if (imgEl)  imgEl.src = user.avatar ? `/uploads/profiles/${user.avatar}` : '/images/default-avatar.svg';
     } else {
-      guestEl.classList.remove('hidden');
-      userEl.classList.add('hidden');
+      guestEl?.classList.remove('hidden');
+      userEl?.classList.add('hidden');
     }
 
-    // Show/hide nav items
-    document.querySelectorAll('.auth-required').forEach(el => {
-      el.classList.toggle('hidden', !user);
-    });
-    document.querySelectorAll('.artist-only').forEach(el => {
-      el.classList.toggle('hidden', user?.role !== 'artist');
-    });
-    document.querySelectorAll('.admin-only').forEach(el => {
-      el.classList.toggle('hidden', user?.role !== 'admin');
-    });
+    document.querySelectorAll('.auth-required').forEach(el => el.classList.toggle('hidden', !user));
+    document.querySelectorAll('.artist-only').forEach(el => el.classList.toggle('hidden', user?.role !== 'artist'));
+    document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', user?.role !== 'admin'));
   };
 
-  // ── Nav links ────────────────────────────────────────────
+  // ── Nav link click handlers ──────────────────────────────
   document.querySelectorAll('.nav-link[data-page]').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       navigate(link.dataset.page);
       if (window.innerWidth <= 768) {
-        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebar')?.classList.remove('open');
         document.getElementById('sidebarOverlay')?.classList.remove('active');
       }
     });
@@ -199,25 +185,22 @@ const App = (() => {
 
   // ── Search ───────────────────────────────────────────────
   const initSearch = () => {
-    const input = document.getElementById('searchInput');
+    const input    = document.getElementById('searchInput');
     const dropdown = document.getElementById('searchDropdown');
-    let debounceTimer;
-
+    if (!input) return;
+    let timer;
     input.addEventListener('input', () => {
-      clearTimeout(debounceTimer);
+      clearTimeout(timer);
       const q = input.value.trim();
       if (q.length < 2) { dropdown.classList.add('hidden'); return; }
-      debounceTimer = setTimeout(() => performSearch(q), 350);
+      timer = setTimeout(() => performSearch(q), 350);
     });
-
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { dropdown.classList.add('hidden'); input.value = ''; }
     });
-
     document.addEventListener('click', (e) => {
-      if (!document.querySelector('.search-bar').contains(e.target)) {
+      if (!document.querySelector('.search-bar')?.contains(e.target))
         dropdown.classList.add('hidden');
-      }
     });
   };
 
@@ -227,48 +210,35 @@ const App = (() => {
     dropdown.classList.remove('hidden');
     try {
       const res = await API.search(q);
-      const { songs = [], artists = [], albums = [] } = res.results;
+      const { songs=[], artists=[], albums=[] } = res.results;
       let html = '';
-
       if (songs.length) {
         html += `<div class="search-section-title">Songs</div>`;
-        html += songs.slice(0, 4).map(s => `
+        html += songs.slice(0,4).map(s => `
           <div class="search-item" onclick="App.playFromSearch(${JSON.stringify(s).replace(/"/g,'&quot;')})">
             <img class="search-item-img" src="${s.artwork?`/uploads/artwork/${s.artwork}`:'/images/default-cover.svg'}" onerror="this.src='/images/default-cover.svg'" alt=""/>
-            <div class="search-item-info">
-              <div class="title">${s.title}</div>
-              <div class="sub">${s.stage_name||s.artist_name||''} · ${s.genre_name||''}</div>
-            </div>
+            <div class="search-item-info"><div class="title">${s.title}</div><div class="sub">${s.stage_name||s.artist_name||''}</div></div>
           </div>`).join('');
       }
-
       if (artists.length) {
         html += `<div class="search-section-title">Artists</div>`;
-        html += artists.slice(0, 3).map(a => `
+        html += artists.slice(0,3).map(a => `
           <div class="search-item" onclick="App.navigate('artist:${a.uuid}');document.getElementById('searchDropdown').classList.add('hidden');document.getElementById('searchInput').value=''">
             <img class="search-item-img round" src="${a.avatar?`/uploads/profiles/${a.avatar}`:'/images/default-avatar.svg'}" alt=""/>
-            <div class="search-item-info">
-              <div class="title">${a.name}</div>
-              <div class="sub">${a.stage_name||''} · ${(a.follower_count||0).toLocaleString()} followers</div>
-            </div>
+            <div class="search-item-info"><div class="title">${a.name}</div><div class="sub">${a.stage_name||''}</div></div>
           </div>`).join('');
       }
-
       if (albums.length) {
         html += `<div class="search-section-title">Albums</div>`;
-        html += albums.slice(0, 3).map(al => `
+        html += albums.slice(0,3).map(al => `
           <div class="search-item" onclick="App.navigate('album:${al.uuid}');document.getElementById('searchDropdown').classList.add('hidden');document.getElementById('searchInput').value=''">
             <img class="search-item-img" src="${al.artwork?`/uploads/artwork/${al.artwork}`:'/images/default-cover.svg'}" alt=""/>
-            <div class="search-item-info">
-              <div class="title">${al.title}</div>
-              <div class="sub">${al.stage_name||al.artist_name||''} · ${al.song_count||0} songs</div>
-            </div>
+            <div class="search-item-info"><div class="title">${al.title}</div><div class="sub">${al.stage_name||al.artist_name||''}</div></div>
           </div>`).join('');
       }
-
       dropdown.innerHTML = html || '<div style="padding:24px;text-align:center;color:var(--text-muted)">No results found</div>';
     } catch (e) {
-      dropdown.innerHTML = `<div style="padding:16px;color:var(--red)">Search failed: ${e.message}</div>`;
+      dropdown.innerHTML = `<div style="padding:16px;color:var(--red)">Search failed</div>`;
     }
   };
 
@@ -278,67 +248,42 @@ const App = (() => {
     document.getElementById('searchInput').value = '';
   };
 
-  // ── Sidebar ──────────────────────────────────────────────
-  // Hamburger + overlay are handled in player.js to keep one listener
-  const initSidebar = () => {
-    // Close sidebar when a nav link is clicked on mobile
-    document.querySelectorAll('.nav-link[data-page]').forEach(link => {
-      link.addEventListener('click', () => {
-        if (window.innerWidth <= 768) {
-          document.getElementById('sidebar').classList.remove('open');
-          document.getElementById('sidebarOverlay')?.classList.remove('active');
-        }
-      });
-    });
-  };
+  // ── Sidebar (hamburger handled in player.js) ─────────────
+  const initSidebar = () => {};
 
-  // ── Play song from row ───────────────────────────────────────
-  // FIX: collect all song UUIDs visible on the page, fetch their data, set as queue
+  // ── Play song from any row ───────────────────────────────
   const playSongFromRow = async (uuid) => {
-    // Collect all song-row uuids currently on screen (for queue context)
     const rows  = Array.from(document.querySelectorAll('.song-row[data-uuid]'));
     const uuids = rows.map(r => r.dataset.uuid).filter(Boolean);
 
-    // If we have a cached song list matching these rows, use it directly
+    // Try cache first
     if (allSongs.length) {
+      const song = allSongs.find(s => s.uuid === uuid);
       const allMatch = uuids.every(u => allSongs.find(s => s.uuid === u));
-      if (allMatch) {
-        const song = allSongs.find(s => s.uuid === uuid);
-        if (song) {
-          const contextSongs = allSongs.filter(s => uuids.includes(s.uuid));
-          return Player.play(song, contextSongs);
-        }
+      if (song && allMatch) {
+        return Player.play(song, allSongs.filter(s => uuids.includes(s.uuid)));
       }
     }
 
-    // Otherwise fetch the clicked song and use visible rows as lightweight queue stubs
     try {
-      const res = await API.getSong(uuid);
-      const clickedSong = res.song;
-
-      // Build a minimal queue from DOM data + fetched song details
-      // Songs will fully load when played
+      const res  = await API.getSong(uuid);
+      const song = res.song;
+      if (!allSongs.find(s => s.uuid === uuid)) allSongs.push(song);
+      // Build minimal queue from visible rows
       const queueSongs = uuids.map(u => {
-        if (u === uuid) return clickedSong;
+        if (u === uuid) return song;
         const row = rows.find(r => r.dataset.uuid === u);
-        // Build a minimal stub from the row's DOM content
         return {
           uuid: u,
           title:       row?.querySelector('.song-row-title')?.textContent || '',
           artist_name: row?.querySelector('.song-row-artist')?.textContent || '',
           stage_name:  null,
-          artwork:     row?.querySelector('.song-row-img img')?.src?.split('/uploads/artwork/')[1] || null,
-          file_path:   null, // will fail gracefully if played
+          artwork:     null,
+          file_path:   null,
         };
-      }).filter(Boolean);
-
-      // Store fetched song in allSongs cache
-      if (!allSongs.find(s => s.uuid === uuid)) allSongs.push(clickedSong);
-
-      Player.play(clickedSong, queueSongs.length > 1 ? queueSongs : [clickedSong]);
-    } catch (e) {
-      showNotification('Could not load song', 'error');
-    }
+      });
+      Player.play(song, queueSongs.length > 1 ? queueSongs : [song]);
+    } catch (e) { showNotification('Could not load song', 'error'); }
   };
 
   // ── Like toggle ──────────────────────────────────────────
@@ -346,24 +291,19 @@ const App = (() => {
     if (!currentUser) return Auth.showSignIn();
     try {
       const res = await API.likeSong(uuid);
-      const icon = btn.querySelector('i');
-      icon.className = res.liked ? 'fas fa-heart' : 'far fa-heart';
+      btn.querySelector('i').className = res.liked ? 'fas fa-heart' : 'far fa-heart';
       btn.classList.toggle('liked', res.liked);
       showNotification(res.liked ? 'Added to liked songs ❤️' : 'Removed from liked songs');
-
-      // Update player like btn if same song
       const current = Player.getCurrent();
       if (current?.uuid === uuid) {
         document.getElementById('playerLikeBtn').querySelector('i').className = res.liked ? 'fas fa-heart' : 'far fa-heart';
         document.getElementById('playerLikeBtn').style.color = res.liked ? 'var(--accent)' : '';
         current.liked = res.liked;
       }
-    } catch (e) {
-      showNotification(e.message, 'error');
-    }
+    } catch (e) { showNotification(e.message, 'error'); }
   };
 
-  // ── Follow toggle ─────────────────────────────────────────
+  // ── Follow toggle ────────────────────────────────────────
   const toggleFollow = async (btn, uuid) => {
     if (!currentUser) return Auth.showSignIn();
     try {
@@ -374,19 +314,18 @@ const App = (() => {
     } catch (e) { showNotification(e.message, 'error'); }
   };
 
-  // ── Playlist modal ────────────────────────────────────────
+  // ── Playlist modal ───────────────────────────────────────
   const initPlaylistModal = () => {
     const overlay = document.getElementById('playlistOverlay');
-    overlay.addEventListener('click', (e) => {
+    overlay?.addEventListener('click', (e) => {
       if (e.target === overlay) overlay.classList.add('hidden');
     });
     document.querySelectorAll('[data-close-overlay]').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.getElementById(btn.dataset.closeOverlay).classList.add('hidden');
+        document.getElementById(btn.dataset.closeOverlay)?.classList.add('hidden');
       });
     });
-
-    document.getElementById('createPlaylistFromModal').addEventListener('click', async () => {
+    document.getElementById('createPlaylistFromModal')?.addEventListener('click', async () => {
       const name = prompt('Playlist name:');
       if (!name) return;
       try {
@@ -405,13 +344,12 @@ const App = (() => {
     if (!currentUser) return Auth.showSignIn();
     currentSongUuid = songUuid;
     const overlay = document.getElementById('playlistOverlay');
-    const list = document.getElementById('playlistModalList');
+    const list    = document.getElementById('playlistModalList');
     list.innerHTML = '<p style="padding:10px;color:var(--text-muted)">Loading…</p>';
     overlay.classList.remove('hidden');
-
     try {
       const res = await API.getMyPlaylists();
-      list.innerHTML = (res.playlists || []).map(pl => `
+      list.innerHTML = (res.playlists||[]).map(pl => `
         <div class="playlist-modal-item" onclick="App.addSongToPlaylist('${pl.uuid}','${pl.title}')">
           <i class="fas fa-list-music"></i>
           <span>${pl.title}</span>
@@ -441,17 +379,14 @@ const App = (() => {
     } catch (e) { showNotification(e.message, 'error'); }
   };
 
-  // ── Playlist play all ────────────────────────────────────
   const playAllFromPlaylist = async (uuid) => {
     try {
       const res = await API.getPlaylist(uuid);
-      if (res.songs?.length) {
-        Player.play(res.songs[0], res.songs);
-      }
+      if (res.songs?.length) Player.play(res.songs[0], res.songs);
     } catch (e) { showNotification('Could not load playlist', 'error'); }
   };
 
-  // ── Download song ─────────────────────────────────────────
+  // ── Download ─────────────────────────────────────────────
   const downloadSong = async (uuid) => {
     if (!currentUser) return Auth.showSignIn();
     try {
@@ -463,27 +398,21 @@ const App = (() => {
         const j = await res.json().catch(() => ({}));
         return showNotification(j.error || 'Cannot download', 'error');
       }
-      // Extract filename from Content-Disposition header (set by server as Kumam_Music - ...)
       const disposition = res.headers.get('Content-Disposition') || '';
       const match = disposition.match(/filename="?([^"]+)"?/);
       const filename = match ? match[1] : `Kumam_Music - song.mp3`;
-
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       showNotification(`Downloading: ${filename}`);
-    } catch (e) {
-      showNotification('Download failed', 'error');
-    }
+    } catch (e) { showNotification('Download failed', 'error'); }
   };
 
-  // ── Artist song delete ────────────────────────────────────
+  // ── Artist song delete ───────────────────────────────────
   const deleteSong = async (uuid) => {
     if (!confirm('Delete this song permanently?')) return;
     try {
@@ -493,7 +422,7 @@ const App = (() => {
     } catch (e) { showNotification(e.message, 'error'); }
   };
 
-  // ── Admin actions ─────────────────────────────────────────
+  // ── Admin actions ────────────────────────────────────────
   const adminToggleUser = async (id, name) => {
     try {
       const res = await API.toggleUserActive(id);
@@ -507,7 +436,7 @@ const App = (() => {
   };
 
   const adminDeleteUser = async (id, name) => {
-    if (!confirm(`Delete user "${name}" permanently? This cannot be undone.`)) return;
+    if (!confirm(`Delete user "${name}" permanently?`)) return;
     try {
       await API.deleteAdminUser(id);
       showNotification(`User "${name}" deleted`);
@@ -540,86 +469,305 @@ const App = (() => {
     } catch (e) { showNotification(e.message, 'error'); }
   };
 
-  // ── Notification ──────────────────────────────────────────
+  const deleteAccount = () => showNotification('Please contact support to delete your account.', 'error');
+
+  // ── Toast notification ───────────────────────────────────
   const showNotification = (msg, type = 'success') => {
-    const el = document.getElementById('notification');
-    const msgEl = document.getElementById('notificationMsg');
-    const icon = el.querySelector('i');
-    msgEl.textContent = msg;
-    icon.className = type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-check-circle';
-    icon.style.color = type === 'error' ? 'var(--red)' : 'var(--accent)';
+    const el   = document.getElementById('notification');
+    if (!el) return;
+    el.innerHTML = `<i class="fas fa-${type==='error'?'exclamation-circle':'check-circle'}" style="color:${type==='error'?'var(--red)':'var(--accent)'}"></i><span>${msg}</span>`;
     el.style.borderColor = type === 'error' ? 'var(--red)' : 'var(--accent)';
     el.classList.remove('hidden');
     clearTimeout(el._timer);
     el._timer = setTimeout(() => el.classList.add('hidden'), 3000);
   };
 
-  // ── Delete account ────────────────────────────────────────
-  const deleteAccount = () => {
-    showNotification('Please contact support to delete your account.', 'error');
+  // ── Notifications banner + badge ─────────────────────────
+  const updateNotifBadge = (count) => {
+    const badge   = document.getElementById('navNotifBadge');
+    const navLink = document.getElementById('navNotifLink');
+    if (!badge || !navLink) return;
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.classList.remove('hidden');
+      navLink.classList.add('has-notifs');
+    } else {
+      badge.classList.add('hidden');
+      navLink.classList.remove('has-notifs');
+    }
   };
 
-  // Boot
-  document.addEventListener('DOMContentLoaded', () => {
-    init();
-    initHelp();
-  });
-
-  // ── Help modal ───────────────────────────────────────────────
-  const initHelp = () => {
-    const fab     = document.getElementById('helpFab');
-    const overlay = document.getElementById('helpOverlay');
-    fab?.addEventListener('click', () => overlay?.classList.remove('hidden'));
-    overlay?.addEventListener('click', (e) => {
-      if (e.target === overlay) overlay.classList.add('hidden');
-    });
-  };
-
-  // ── Notifications banner ─────────────────────────────────────
   const loadNotifications = async () => {
     const banner = document.getElementById('notificationsBanner');
-    if (!banner || !currentUser) return;
+    if (!currentUser) return;
     try {
-      const res = await API.get('/notifications');
+      const res   = await API.get('/notifications');
       const notifs = res.notifications || [];
+      updateNotifBadge(notifs.length);
+      if (!banner) return;
       banner.innerHTML = '';
       if (!notifs.length) { banner.classList.add('hidden'); return; }
       banner.classList.remove('hidden');
+      const icons = { green:'check-circle', yellow:'exclamation-triangle', red:'exclamation-circle' };
       notifs.forEach(n => {
-        const icons = { green: 'check-circle', yellow: 'exclamation-triangle', red: 'exclamation-circle' };
         const bar = document.createElement('div');
-        bar.className = `notif-bar ${n.color}`;
-        bar.dataset.id = n.id;
-        bar.innerHTML = `
-          <i class="fas fa-${icons[n.color] || 'info-circle'} notif-bar-icon"></i>
+        bar.className   = `notif-bar ${n.color}`;
+        bar.dataset.id  = n.id;
+        bar.innerHTML   = `
+          <i class="fas fa-${icons[n.color]||'info-circle'} notif-bar-icon"></i>
           <div class="notif-bar-body">
             <div class="notif-bar-title">${n.title}</div>
             <div class="notif-bar-msg">${n.message}</div>
           </div>
-          <button class="notif-bar-close" onclick="App.dismissNotification(${n.id}, this)" title="Dismiss">
+          <button class="notif-bar-close" onclick="App.dismissNotification(${n.id},this)" title="Dismiss">
             <i class="fas fa-times"></i>
           </button>`;
         banner.appendChild(bar);
       });
-    } catch (e) { /* silent — user may not be logged in */ }
+    } catch (e) { /* silent */ }
   };
 
   const dismissNotification = async (id, btn) => {
     try {
       await API.post(`/notifications/${id}/dismiss`);
-      const bar = btn.closest('.notif-bar');
-      bar.style.transition = 'opacity 0.25s, max-height 0.3s';
-      bar.style.opacity = '0';
-      bar.style.maxHeight = '0';
-      bar.style.overflow = 'hidden';
-      bar.style.padding = '0';
-      setTimeout(() => {
-        bar.remove();
-        const banner = document.getElementById('notificationsBanner');
-        if (banner && !banner.children.length) banner.classList.add('hidden');
-      }, 300);
+      const bar = btn?.closest?.('.notif-bar') || document.querySelector(`[data-id="${id}"]`);
+      if (bar) {
+        bar.style.transition = 'opacity 0.25s';
+        bar.style.opacity = '0';
+        setTimeout(() => {
+          bar.remove();
+          const banner = document.getElementById('notificationsBanner');
+          if (banner && !banner.children.length) banner.classList.add('hidden');
+          updateNotifBadge(Math.max(0, (parseInt(document.getElementById('navNotifBadge')?.textContent)||1) - 1));
+        }, 250);
+      }
     } catch (e) { showNotification('Could not dismiss', 'error'); }
   };
+
+  const dismissAllNotifications = async () => {
+    document.querySelectorAll('.notif-page-item[id^="notif-page-"]').forEach(async item => {
+      const id = item.id.replace('notif-page-','');
+      try { await API.post(`/notifications/${id}/dismiss`); } catch (e) {}
+      item.remove();
+    });
+    updateNotifBadge(0);
+    document.getElementById('notificationsBanner')?.classList.add('hidden');
+    showNotification('All notifications dismissed');
+    navigate('notifications-page');
+  };
+
+  // ── Share ────────────────────────────────────────────────
+  const openShare = async (type, refUuid, refTitle) => {
+    const overlay = document.getElementById('shareOverlay');
+    if (!overlay) return;
+    document.getElementById('shareModalTitle').textContent = `Share "${refTitle||'Kumam Music'}"`;
+    document.getElementById('shareModalSubtitle').textContent = `Share this ${type}`;
+    document.getElementById('shareLinkInput').value = 'Generating link…';
+    document.getElementById('shareCopiedMsg').classList.add('hidden');
+    overlay.classList.remove('hidden');
+    try {
+      const res = await API.createShareLink({ type, ref_uuid: refUuid, ref_title: refTitle });
+      const url = res.url;
+      _shareData = { url, title: refTitle||'Kumam Music' };
+      document.getElementById('shareLinkInput').value = url;
+      const text = encodeURIComponent(`🎵 Listen on Kumam Music: ${refTitle||''} ${url}`);
+      document.getElementById('shareWhatsApp').href = `https://wa.me/?text=${text}`;
+      document.getElementById('shareFacebook').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+      document.getElementById('shareTwitter').href  = `https://twitter.com/intent/tweet?text=${text}`;
+      document.getElementById('shareNativeBtn').style.display = navigator.share ? '' : 'none';
+    } catch (e) { document.getElementById('shareLinkInput').value = window.location.origin; }
+  };
+
+  const copyShareLink = () => {
+    const input = document.getElementById('shareLinkInput');
+    navigator.clipboard?.writeText(input.value).then(() => {
+      document.getElementById('shareCopiedMsg').classList.remove('hidden');
+      document.getElementById('copyLinkBtn').innerHTML = '<i class="fas fa-check"></i> Copied!';
+      setTimeout(() => {
+        document.getElementById('shareCopiedMsg').classList.add('hidden');
+        document.getElementById('copyLinkBtn').innerHTML = '<i class="fas fa-copy"></i> Copy';
+      }, 2500);
+    }).catch(() => { input.select(); document.execCommand('copy'); showNotification('Link copied!'); });
+  };
+
+  const nativeShare = async () => {
+    if (!_shareData || !navigator.share) return;
+    try { await navigator.share({ title: _shareData.title, text:'🎵 Listen on Kumam Music', url: _shareData.url }); }
+    catch (e) {}
+  };
+
+  const handleShareLink = async () => {
+    const shareId = new URLSearchParams(window.location.search).get('share');
+    if (!shareId) return;
+    try {
+      const res = await API.resolveShare(shareId);
+      if (res.type === 'artist')   navigate(`artist:${res.ref_uuid}`);
+      else if (res.type === 'album')    navigate(`album:${res.ref_uuid}`);
+      else if (res.type === 'playlist') navigate(`playlist:${res.ref_uuid}`);
+      window.history.replaceState({}, '', window.location.pathname);
+    } catch (e) {}
+  };
+
+  // ── Donations ────────────────────────────────────────────
+  const openDonation = (artistUuid, artistName) => {
+    if (!currentUser) return Auth.showSignIn();
+    const overlay = document.getElementById('donationOverlay');
+    if (!overlay) return;
+    document.getElementById('donationArtistName').textContent = artistName;
+    document.getElementById('donationArtistUuid').value = artistUuid;
+    document.getElementById('donationError').classList.add('hidden');
+    document.getElementById('donationSuccess').classList.add('hidden');
+    document.getElementById('donationForm').classList.remove('hidden');
+    document.getElementById('donationPending').classList.add('hidden');
+    document.getElementById('donationBreakdown').classList.add('hidden');
+    document.getElementById('donationAmount').value = '';
+    document.querySelectorAll('.donation-preset').forEach(b => b.classList.remove('active'));
+    overlay.classList.remove('hidden');
+  };
+
+  const showDonationBreakdown = (amount) => {
+    document.getElementById('breakdownArtist').textContent = `UGX ${Math.round(amount*0.85).toLocaleString()}`;
+    document.getElementById('breakdownFee').textContent    = `UGX ${Math.round(amount*0.15).toLocaleString()}`;
+    document.getElementById('donationBreakdown').classList.remove('hidden');
+  };
+
+  const checkDonationStatus = async () => {
+    if (!_donationRef) return;
+    try {
+      const res = await API.verifyDonation(_donationRef);
+      if (res.status === 'completed') {
+        document.getElementById('donationPending').classList.add('hidden');
+        const s = document.getElementById('donationSuccess');
+        s.textContent = res.message; s.classList.remove('hidden');
+        showNotification('💝 Donation sent! Thank you for supporting the artist.');
+        setTimeout(() => document.getElementById('donationOverlay').classList.add('hidden'), 3000);
+      }
+    } catch (e) {}
+  };
+
+  // ── Terms & Conditions ───────────────────────────────────
+  const showTerms = (onAccept) => {
+    _termsCallback = onAccept;
+    const cb = document.getElementById('termsCheckbox');
+    if (cb) cb.checked = false;
+    const btn = document.getElementById('termsAcceptBtn');
+    if (btn) btn.disabled = true;
+    document.getElementById('termsOverlay')?.classList.remove('hidden');
+  };
+
+  const acceptTermsAndProceed = () => {
+    document.getElementById('termsOverlay')?.classList.add('hidden');
+    if (_termsCallback) { _termsCallback(); _termsCallback = null; }
+  };
+
+  // ── Init all modal close/event bindings ──────────────────
+  const initModals = () => {
+    // Help
+    document.getElementById('helpFab')?.addEventListener('click', () =>
+      document.getElementById('helpOverlay')?.classList.remove('hidden'));
+    document.getElementById('helpOverlay')?.addEventListener('click', (e) => {
+      if (e.target === document.getElementById('helpOverlay'))
+        document.getElementById('helpOverlay').classList.add('hidden');
+    });
+
+    // Share
+    document.getElementById('shareOverlay')?.addEventListener('click', (e) => {
+      if (e.target === document.getElementById('shareOverlay'))
+        document.getElementById('shareOverlay').classList.add('hidden');
+    });
+
+    // Donation presets
+    document.querySelectorAll('.donation-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.donation-preset').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const amt = parseInt(btn.dataset.amount);
+        document.getElementById('donationAmount').value = amt;
+        showDonationBreakdown(amt);
+      });
+    });
+
+    document.getElementById('donationAmount')?.addEventListener('input', (e) => {
+      const amt = parseInt(e.target.value);
+      if (amt >= 500) showDonationBreakdown(amt);
+      else document.getElementById('donationBreakdown').classList.add('hidden');
+    });
+
+    document.getElementById('donationForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const artistUuid = document.getElementById('donationArtistUuid').value;
+      const amount     = parseInt(document.getElementById('donationAmount').value);
+      const method     = document.querySelector('input[name="don_method"]:checked')?.value;
+      const phone      = document.getElementById('donationPhone').value.trim();
+      const message    = document.getElementById('donationMessage').value.trim();
+      const errEl      = document.getElementById('donationError');
+      const btn        = document.getElementById('donationSubmitBtn');
+      if (!method) { errEl.textContent = 'Choose a payment method'; errEl.classList.remove('hidden'); return; }
+      errEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.querySelector('span').textContent = 'Processing…';
+      btn.querySelector('i').classList.remove('hidden');
+      try {
+        const res = await API.initiateDonation({ artist_uuid: artistUuid, amount, payment_method: method, payment_phone: phone, message });
+        _donationRef = res.transaction_ref;
+        document.getElementById('donationForm').classList.add('hidden');
+        document.getElementById('donationPending').classList.remove('hidden');
+        document.getElementById('donationPendingMsg').textContent = res.instructions;
+        setTimeout(checkDonationStatus, 12000);
+      } catch (err) {
+        errEl.textContent = err.message; errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.querySelector('span').textContent = 'Send Donation';
+        btn.querySelector('i').classList.add('hidden');
+      }
+    });
+
+    document.getElementById('checkDonationBtn')?.addEventListener('click', checkDonationStatus);
+    document.getElementById('donationOverlay')?.addEventListener('click', (e) => {
+      if (e.target === document.getElementById('donationOverlay'))
+        document.getElementById('donationOverlay').classList.add('hidden');
+    });
+
+    // Terms
+    document.getElementById('termsCheckbox')?.addEventListener('change', (e) => {
+      document.getElementById('termsAcceptBtn').disabled = !e.target.checked;
+    });
+    document.getElementById('termsOverlay')?.addEventListener('click', (e) => {
+      if (e.target === document.getElementById('termsOverlay'))
+        document.getElementById('termsOverlay').classList.add('hidden');
+    });
+
+    // User dropdown
+    document.getElementById('userAvatarBtn')?.addEventListener('click', () =>
+      document.getElementById('userDropdown').classList.toggle('hidden'));
+    document.addEventListener('click', (e) => {
+      if (!document.getElementById('userMenu')?.contains(e.target))
+        document.getElementById('userDropdown')?.classList.add('hidden');
+    });
+
+    // User dropdown links
+    document.querySelectorAll('.user-dropdown a[data-page]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('userDropdown')?.classList.add('hidden');
+        navigate(a.dataset.page);
+      });
+    });
+
+    // Logout
+    document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.removeItem('kumam_token');
+      setUser(null);
+      navigate('home');
+      showNotification('Signed out successfully');
+      document.getElementById('userDropdown')?.classList.add('hidden');
+    });
+  };
+
+  // ── Boot ─────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', init);
 
   return {
     navigate, getUser, setUser, updateNavForUser,
@@ -628,6 +776,10 @@ const App = (() => {
     playAllFromPlaylist, playSongFromRow, playFromSearch,
     downloadSong, deleteSong,
     adminToggleUser, adminDeleteUser, adminToggleSong, adminDeleteSong, adminApproveSub,
-    deleteAccount, dismissNotification, loadNotifications,
+    deleteAccount,
+    loadNotifications, dismissNotification, dismissAllNotifications, updateNotifBadge,
+    openShare, copyShareLink, nativeShare,
+    openDonation, checkDonationStatus, showDonationBreakdown,
+    showTerms, acceptTermsAndProceed,
   };
 })();

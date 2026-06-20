@@ -34,6 +34,9 @@ const Pages = (() => {
             <button onclick="event.stopPropagation();App.openAddToPlaylist('${song.uuid}')" title="Add to playlist">
               <i class="fas fa-plus"></i>
             </button>
+            <button onclick="event.stopPropagation();App.openShare('song','${song.uuid}','${song.title.replace(/'/g,"\\'")}')" title="Share">
+              <i class="fas fa-share-alt"></i>
+            </button>
           </div>
         </div>
       </div>`;
@@ -62,6 +65,9 @@ const Pages = (() => {
             <i class="fas fa-plus"></i>
           </button>
           ${song.is_downloadable ? `<button onclick="event.stopPropagation();App.downloadSong('${song.uuid}')" title="Download"><i class="fas fa-download"></i></button>` : ''}
+          <button onclick="event.stopPropagation();App.openShare('song','${song.uuid}','${song.title.replace(/'/g,"\\'")}')" title="Share">
+            <i class="fas fa-share-alt"></i>
+          </button>
         </div>
       </div>`;
   };
@@ -573,6 +579,8 @@ const Pages = (() => {
                 ${a.is_following ? '<i class="fas fa-check"></i> Following' : '<i class="fas fa-plus"></i> Follow'}
               </button>
               ${songs.length ? `<button class="btn btn-outline" onclick="Player.play(${JSON.stringify(songs[0]).replace(/"/g,'&quot;')},${JSON.stringify(songs).replace(/"/g,'&quot;')})"><i class="fas fa-play"></i> Play</button>` : ''}
+              <button class="btn btn-outline" onclick="App.openShare('artist','${a.uuid}','${(a.stage_name||a.name).replace(/'/g,"\\'")}')"><i class="fas fa-share-alt"></i> Share</button>
+              <button class="btn btn-outline" style="color:var(--accent);border-color:var(--accent)" onclick="App.openDonation('${a.uuid}','${(a.stage_name||a.name).replace(/'/g,"\\'")}')"><i class="fas fa-heart"></i> Support</button>
             </div>
           </div>
         </div>
@@ -1087,12 +1095,14 @@ const Pages = (() => {
           <div class="admin-tab" onclick="Pages.adminTab(this,'admin-subs')">Subscriptions</div>
           <div class="admin-tab" onclick="Pages.adminTab(this,'admin-earnings')">Earnings</div>
           <div class="admin-tab" onclick="Pages.adminTab(this,'admin-notifs')">Notifications</div>
+          <div class="admin-tab" onclick="Pages.adminTab(this,'admin-donations')">Donations</div>
         </div>
         <div class="admin-content active" id="admin-users">${loading()}</div>
         <div class="admin-content" id="admin-songs"></div>
         <div class="admin-content" id="admin-subs"></div>
         <div class="admin-content" id="admin-earnings"></div>
         <div class="admin-content" id="admin-notifs"></div>
+        <div class="admin-content" id="admin-donations"></div>
       `;
 
       // Load users tab
@@ -1114,6 +1124,7 @@ const Pages = (() => {
     else if (tabId === 'admin-subs' && !tab.dataset.loaded) loadAdminSubs();
     else if (tabId === 'admin-earnings' && !tab.dataset.loaded) loadAdminEarnings();
     else if (tabId === 'admin-notifs') loadAdminNotifs();
+    else if (tabId === 'admin-donations') loadAdminDonations();
   };
 
   const loadAdminUsers = async () => {
@@ -1220,48 +1231,115 @@ const Pages = (() => {
   };
 
   // ════════════════════════════════════════════════════════
-  // SUBSCRIPTION PAGE
+  // SUBSCRIPTION PAGE (revised)
   // ════════════════════════════════════════════════════════
   const renderSubscription = (container) => {
+    const user = App.getUser();
+    const isArtist = user?.role === 'artist';
+
     container.innerHTML = `
       <div class="section">
-        <div class="section-header"><h2 class="section-title"><i class="fas fa-crown"></i> Subscription Plans</h2></div>
-        <div style="max-width:700px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px">
-            <div class="stat-card" style="border:2px solid var(--accent)">
-              <div style="font-size:28px;margin-bottom:12px">🎵</div>
-              <h3 style="font-size:18px;margin-bottom:8px">Listener Free</h3>
-              <div style="font-size:28px;font-weight:800;color:var(--accent);margin-bottom:12px">UGX 0</div>
-              <ul style="color:var(--text-secondary);font-size:13px;list-style:none;margin-bottom:20px;line-height:2">
-                <li>✅ Stream all songs</li><li>✅ Search music</li><li>✅ Follow artists</li>
-                <li>✅ Create playlists</li><li>❌ Downloads</li><li>❌ Offline mode</li>
-              </ul>
-              <button class="btn btn-outline w-full">Current Plan</button>
-            </div>
-            <div class="stat-card" style="border:2px solid var(--purple)">
-              <div style="font-size:28px;margin-bottom:12px">👑</div>
-              <h3 style="font-size:18px;margin-bottom:8px">Listener Premium</h3>
-              <div style="font-size:28px;font-weight:800;color:var(--purple);margin-bottom:12px">UGX 5,000<span style="font-size:14px;color:var(--text-muted)">/month</span></div>
-              <ul style="color:var(--text-secondary);font-size:13px;list-style:none;margin-bottom:20px;line-height:2">
-                <li>✅ Everything in Free</li><li>✅ Download songs</li><li>✅ Offline listening</li>
-                <li>✅ Premium songs access</li><li>✅ Ad-free experience</li><li>✅ High quality audio</li>
-              </ul>
-              <button class="btn btn-primary w-full" onclick="Auth.showSubscription('listener_premium')">Subscribe via MTN/Airtel</button>
-            </div>
-          </div>
-          <div class="stat-card" style="border:2px solid var(--green)">
-            <div style="font-size:28px;margin-bottom:12px">🎤</div>
-            <h3 style="font-size:18px;margin-bottom:8px">Artist Annual Plan</h3>
-            <div style="font-size:28px;font-weight:800;color:var(--green);margin-bottom:12px">UGX 15,000<span style="font-size:14px;color:var(--text-muted)">/year</span></div>
-            <ul style="color:var(--text-secondary);font-size:13px;list-style:none;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;line-height:2">
-              <li>✅ Upload unlimited songs</li><li>✅ Create albums</li>
-              <li>✅ Earn from streams</li><li>✅ View analytics</li>
-              <li>✅ Artist profile page</li><li>✅ Verified badge</li>
+        <div class="section-header"><h2 class="section-title"><i class="fas fa-crown"></i> Plans & Payments</h2></div>
+
+        ${isArtist ? `
+        <!-- ARTIST: Payment Registration only -->
+        <div style="max-width:560px">
+          <div class="stat-card" style="border:2px solid var(--green);margin-bottom:20px">
+            <div style="font-size:32px;margin-bottom:12px">🎤</div>
+            <h3 style="font-size:20px;font-weight:800;margin-bottom:6px">Artist Payment Registration</h3>
+            <div style="font-size:30px;font-weight:800;color:var(--green);margin-bottom:4px">UGX 15,000</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">One-time registration fee — no renewals</div>
+            <ul style="list-style:none;font-size:13px;color:var(--text-secondary);line-height:2.2;margin-bottom:20px">
+              <li>✅ Earn from stream royalties (UGX 0.001/stream)</li>
+              <li>✅ Receive fan donations directly</li>
+              <li>✅ Withdraw earnings via MTN/Airtel/Bank</li>
+              <li>✅ Access full earnings analytics dashboard</li>
+              <li>✅ Verified payment badge on your profile</li>
             </ul>
-            <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Payment: UGX 0.001 per stream (UGX 1 per 1,000 streams) paid monthly</div>
-            <button class="btn btn-green w-full" onclick="Auth.showSubscription('artist_annual')">Subscribe as Artist via MTN/Airtel</button>
+            <div class="alert" style="background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.4);color:#fde047;font-size:13px;margin-bottom:16px">
+              <i class="fas fa-info-circle"></i>
+              You must accept the <strong>Terms & Conditions</strong> before registering for payments. This fee is non-refundable.
+            </div>
+            <button class="btn btn-green w-full" onclick="App.showTerms(() => Auth.showSubscription('artist_payment_registration'))">
+              <i class="fas fa-file-contract"></i> Read Terms & Register for Payments
+            </button>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);text-align:center">
+            Questions? <a href="mailto:williamekidu@gmail.com" style="color:var(--accent)">Contact support</a>
           </div>
         </div>
+        ` : `
+        <!-- LISTENER: Premium plans -->
+        <div style="max-width:700px">
+          <div class="plan-grid">
+            <div class="plan-tile">
+              <div class="plan-tile-icon">🎵</div>
+              <div class="plan-tile-name">Free</div>
+              <div class="plan-tile-price">UGX 0</div>
+              <div class="plan-tile-period">Forever</div>
+              <ul class="plan-tile-features">
+                <li>Stream all songs</li>
+                <li>Search & discover</li>
+                <li>Follow artists</li>
+                <li>Create playlists</li>
+              </ul>
+              <button class="btn btn-outline w-full" style="margin-top:14px" disabled>Current Plan</button>
+            </div>
+            <div class="plan-tile" style="border-color:var(--purple)">
+              <div class="plan-tile-icon">👑</div>
+              <div class="plan-tile-name">Premium Monthly</div>
+              <div class="plan-tile-price" style="color:var(--purple)">UGX 5,000</div>
+              <div class="plan-tile-period">/month</div>
+              <ul class="plan-tile-features">
+                <li>Ad-free listening</li>
+                <li>Download songs</li>
+                <li>High quality audio</li>
+                <li>Offline playlists</li>
+              </ul>
+              <button class="btn btn-primary w-full" style="margin-top:14px;background:var(--purple)"
+                onclick="Auth.showSubscription('listener_premium')">
+                Subscribe
+              </button>
+            </div>
+          </div>
+          <div class="plan-tile" style="border-color:var(--accent);background:var(--accent-glow);max-width:100%;margin-bottom:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                  <span style="font-size:24px">⭐</span>
+                  <div class="plan-tile-name" style="font-size:16px">Premium Annual</div>
+                  <span style="background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px">BEST VALUE</span>
+                </div>
+                <ul class="plan-tile-features" style="columns:2;column-gap:24px">
+                  <li>Everything in monthly</li>
+                  <li>Unlimited downloads</li>
+                  <li>25% savings</li>
+                  <li>Priority support</li>
+                </ul>
+              </div>
+              <div style="text-align:center;flex-shrink:0">
+                <div class="plan-tile-price">UGX 45,000</div>
+                <div class="plan-tile-period">/year</div>
+                <button class="btn btn-primary" style="margin-top:10px"
+                  onclick="Auth.showSubscription('listener_premium_annual')">
+                  Subscribe
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="stat-card" style="border:1px solid rgba(236,72,153,0.4)">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+              <div style="font-size:32px">💝</div>
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:16px;margin-bottom:4px">Support Your Favourite Artists</div>
+                <div style="font-size:13px;color:var(--text-secondary)">Send a donation directly to any artist. 85% goes to the artist, 15% supports the platform.</div>
+              </div>
+              <button class="btn btn-outline" style="color:#EC4899;border-color:#EC4899" onclick="App.navigate('discover')">
+                <i class="fas fa-heart"></i> Find Artists
+              </button>
+            </div>
+          </div>
+        </div>`}
       </div>`;
   };
 
@@ -1397,14 +1475,113 @@ const Pages = (() => {
     }
   };
 
+  const loadAdminDonations = async () => {
+    const el = document.getElementById('admin-donations');
+    if (!el) return;
+    try {
+      const res = await API.getAdminDonations();
+      const { donations = [], totals = {} } = res;
+      el.dataset.loaded = '1';
+      el.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:24px">
+          <div class="stat-card">
+            <div class="stat-card-icon" style="background:#EC489920;color:#EC4899"><i class="fas fa-hand-holding-heart"></i></div>
+            <div class="stat-card-value">${fmtNum(totals.total_count||0)}</div>
+            <div class="stat-card-label">Total Donations</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-icon" style="background:#10B98120;color:#10B981"><i class="fas fa-coins"></i></div>
+            <div class="stat-card-value">UGX ${fmtNum(Math.round(totals.total_amount||0))}</div>
+            <div class="stat-card-label">Total Donated</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-icon" style="background:#F59E0B20;color:#F59E0B"><i class="fas fa-percentage"></i></div>
+            <div class="stat-card-value">UGX ${fmtNum(Math.round(totals.total_commission||0))}</div>
+            <div class="stat-card-label">Platform Commission (15%)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-icon" style="background:#8B5CF620;color:#8B5CF6"><i class="fas fa-music"></i></div>
+            <div class="stat-card-value">UGX ${fmtNum(Math.round(totals.total_artist_earnings||0))}</div>
+            <div class="stat-card-label">Paid to Artists (85%)</div>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Donor</th><th>Artist</th><th>Amount</th><th>Artist Gets</th><th>Fee</th><th>Method</th><th>Message</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+              ${donations.map(d => `<tr>
+                <td>${d.donor_name||'Anonymous'}</td>
+                <td>${d.artist_name}</td>
+                <td>UGX ${Number(d.amount).toLocaleString()}</td>
+                <td style="color:var(--green)">UGX ${Number(d.artist_amount).toLocaleString()}</td>
+                <td style="color:var(--text-muted)">UGX ${Number(d.admin_commission).toLocaleString()}</td>
+                <td><span class="badge" style="background:${d.payment_method==='mtn'?'rgba(255,204,0,0.2)':'rgba(239,68,68,0.2)'};color:${d.payment_method==='mtn'?'#fde047':'#fca5a5'}">${d.payment_method?.toUpperCase()}</span></td>
+                <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.message||'—'}</td>
+                <td><span class="badge badge-${d.status==='completed'?'active':d.status==='pending'?'pending':'expired'}">${d.status}</span></td>
+                <td>${fmtDate(d.created_at)}</td>
+              </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:32px">No donations yet</td></tr>'}
+            </tbody>
+          </table>
+        </div>`;
+    } catch (err) {
+      el.innerHTML = `<p style="color:var(--red);padding:20px">${err.message}</p>`;
+    }
+  };
+
+  // ════════════════════════════════════════════════════════
+  // NOTIFICATIONS PAGE
+  // ════════════════════════════════════════════════════════
+  const renderNotificationsPage = async (container) => {
+    container.innerHTML = loading();
+    try {
+      const res = await API.get('/notifications');
+      const notifs = res.notifications || [];
+      const icons  = { green: 'check-circle', yellow: 'exclamation-triangle', red: 'exclamation-circle' };
+      const fmtAgo = (d) => {
+        const diff = Math.floor((Date.now() - new Date(d)) / 1000);
+        if (diff < 60)   return 'Just now';
+        if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+        if (diff < 86400)return `${Math.floor(diff/3600)}h ago`;
+        return fmtDate(d);
+      };
+      container.innerHTML = `
+        <div class="section">
+          <div class="section-header">
+            <h2 class="section-title"><i class="fas fa-bell"></i> Notifications</h2>
+            ${notifs.length ? `<button class="btn btn-outline btn-sm" onclick="App.dismissAllNotifications()"><i class="fas fa-check-double"></i> Dismiss All</button>` : ''}
+          </div>
+          ${notifs.length ? notifs.map(n => `
+            <div class="notif-page-item unread ${n.color}" id="notif-page-${n.id}">
+              <i class="fas fa-${icons[n.color]||'info-circle'} notif-page-icon"></i>
+              <div class="notif-page-body">
+                <div class="notif-page-title">${n.title}</div>
+                <div class="notif-page-msg">${n.message}</div>
+                <div class="notif-page-meta">${fmtAgo(n.created_at)}</div>
+              </div>
+              <button class="notif-dismiss-btn" onclick="App.dismissNotification(${n.id}, this)" title="Dismiss">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>`).join('') : `
+            <div class="empty-state">
+              <i class="fas fa-bell-slash"></i>
+              <h3>No notifications</h3>
+              <p>You're all caught up!</p>
+            </div>`}
+        </div>`;
+    } catch (e) {
+      container.innerHTML = `<p style="color:var(--red);padding:32px">${e.message}</p>`;
+    }
+  };
+
   return {
     renderHome, renderDiscover, renderGenres, renderGenreDetail, renderCharts,
     renderLibrary, renderLiked, renderHistory, renderPlaylists, renderPlaylist,
     renderAlbum, renderArtist, renderProfile, renderSettings, renderSubscription,
     renderArtistDashboard, renderUpload, renderMySongs, renderAdmin,
+    renderNotificationsPage,
     filterDiscover, switchTab, adminTab, selectNotifColor, deleteAdminNotif,
     loadAdminUsers, loadAdminSongs, loadAdminSubs, loadAdminEarnings,
-    loadAdminNotifs, loadAdminNotifList,
+    loadAdminNotifs, loadAdminNotifList, loadAdminDonations,
     songCard, songRow, artistCard, albumCard, playlistCard,
   };
 })();

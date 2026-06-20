@@ -99,11 +99,20 @@ const API = (() => {
     getRecommendations: () => request('GET', '/users/recommendations'),
     getHistory: () => request('GET', '/users/history'),
 
-    // Subscriptions
-    getPlans: () => request('GET', '/subscriptions/plans'),
-    getMySubscription: () => request('GET', '/subscriptions/my-subscription'),
-    initiatePayment: (data) => request('POST', '/subscriptions/initiate', data),
-    verifyPayment: (transaction_ref) => request('POST', '/subscriptions/verify', { transaction_ref }),
+    // Subscriptions (updated)
+    getPlans:             ()     => request('GET',  '/subscriptions/plans'),
+    getMySubscription:    ()     => request('GET',  '/subscriptions/my-subscription'),
+    initiatePayment:      (data) => request('POST', '/subscriptions/initiate', data),
+    verifyPayment:        (ref)  => request('POST', '/subscriptions/verify', { transaction_ref: ref }),
+    initiateDonation:     (data) => request('POST', '/subscriptions/donate', data),
+    verifyDonation:       (ref)  => request('POST', '/subscriptions/donate/verify', { transaction_ref: ref }),
+
+    // Share
+    createShareLink: (data) => request('POST', '/share', data),
+    resolveShare:    (uuid) => request('GET',  `/share/${uuid}`),
+
+    // Admin extras
+    getAdminDonations: () => request('GET', '/admin/donations'),
 
     // Search
     search: (q, type = 'all') => request('GET', `/search?q=${encodeURIComponent(q)}&type=${type}`),

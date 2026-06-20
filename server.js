@@ -34,6 +34,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/subscriptions', require('./routes/subscriptions'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/share', require('./routes/share'));
 
 // Serve main SPA
 app.get('*', (req, res) => {
