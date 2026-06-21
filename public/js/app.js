@@ -242,10 +242,16 @@ const App = (() => {
     }
   };
 
-  const playFromSearch = (song) => {
-    Player.play(song, [song]);
+  const playFromSearch = async (song) => {
     document.getElementById('searchDropdown').classList.add('hidden');
     document.getElementById('searchInput').value = '';
+    // Search results are lightweight (no file_path). Fetch the full song first.
+    try {
+      const res = await API.getSong(song.uuid);
+      Player.play(res.song, [res.song]);
+    } catch (e) {
+      showNotification('Could not load song', 'error');
+    }
   };
 
   // ── Sidebar (hamburger handled in player.js) ─────────────

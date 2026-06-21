@@ -6,43 +6,65 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3000;
+const isProd = process.env.NODE_ENV === 'production';
+
+// Trust Railway/Heroku proxy for correct IPs and HTTPS detection
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Only serve /uploads locally — in production all assets are on Cloudinary
+if (!isProd) {
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+}
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'kumam-music-secret-2024',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+  cookie: {
+    secure: isProd,   // HTTPS-only cookies in production
+    maxAge: 24 * 60 * 60 * 1000
+  }
 }));
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/songs', require('./routes/songs'));
-app.use('/api/albums', require('./routes/albums'));
-app.use('/api/playlists', require('./routes/playlists'));
-app.use('/api/artists', require('./routes/artists'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/subscriptions', require('./routes/subscriptions'));
-app.use('/api/search', require('./routes/search'));
-app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/share', require('./routes/share'));
+// ── Health check (Railway uses this) ────────────────────────────
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', env: process.env.NODE_ENV, time: new Date().toISOString() });
+});
 
-// Serve main SPA
+// Routes
+app.use('/api/auth',          require('./routes/auth'));
+app.use('/api/songs',         require('./routes/songs'));
+app.use('/api/albums',        require('./routes/albums'));
+app.use('/api/playlists',     require('./routes/playlists'));
+app.use('/api/artists',       require('./routes/artists'));
+app.use('/api/users',         require('./routes/users'));
+app.use('/api/admin',         require('./routes/admin'));
+app.use('/api/subscriptions', require('./routes/subscriptions'));
+app.use('/api/search',        require('./routes/search'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/share',         require('./routes/share'));
+
+// SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 app.listen(PORT, () => {
-  console.log(`Kumam Music streaming on port ${PORT}`);
+  console.log(`🥁 Kumam Music running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
 });
 
 module.exports = app;

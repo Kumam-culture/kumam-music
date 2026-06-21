@@ -1,17 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'uploads', 'profiles')),
-  filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`)
-});
-const upload = multer({ storage, limits: { fileSize: 3 * 1024 * 1024 } });
+const { uploadProfile } = require('../config/cloudinary');
 
 // GET /api/users/profile
 router.get('/profile', authenticate, async (req, res) => {
@@ -31,10 +24,10 @@ router.get('/profile', authenticate, async (req, res) => {
 });
 
 // PUT /api/users/profile
-router.put('/profile', authenticate, upload.single('avatar'), async (req, res) => {
+router.put('/profile', authenticate, uploadProfile.single('avatar'), async (req, res) => {
   try {
     const { name, email, bio, phone, currentPassword, newPassword } = req.body;
-    const avatarPath = req.file?.filename || null;
+    const avatarPath = req.file?.path || null; // Cloudinary secure_url
 
     // Verify password for credential changes
     if (email || newPassword) {

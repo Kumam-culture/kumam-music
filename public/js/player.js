@@ -60,8 +60,8 @@ const Player = (() => {
   };
 
   const getArtwork = (song) => {
-    if (song.artwork)       return `/uploads/artwork/${song.artwork}`;
-    if (song.album_artwork) return `/uploads/artwork/${song.album_artwork}`;
+    if (song.artwork)       return API.artworkUrl(song.artwork);
+    if (song.album_artwork) return API.artworkUrl(song.album_artwork);
     return '/images/default-cover.svg';
   };
 
@@ -135,7 +135,8 @@ const Player = (() => {
       currentIndex = 0;
     }
 
-    const newSrc = `/uploads/songs/${song.file_path}`;
+    // file_path is now a full Cloudinary URL or a legacy filename
+    const newSrc = API.songUrl(song.file_path);
     // Always set src and reload — fixes queue/history not playing
     audio.src = newSrc;
     audio.load();
@@ -160,10 +161,17 @@ const Player = (() => {
     if (!queue[idx]) return;
     currentIndex = idx;
     const song = queue[idx];
-    audio.src = `/uploads/songs/${song.file_path}`;
+    // If this is a stub from DOM (no file_path), fetch full song first
+    if (!song.file_path) {
+      try {
+        const res = await API.getSong(song.uuid);
+        queue[idx] = { ...queue[idx], ...res.song };
+      } catch (e) { console.warn('Could not fetch song details:', e.message); return; }
+    }
+    audio.src = API.songUrl(queue[idx].file_path);
     audio.load();
     updateUI();
-    recordStream(song);
+    recordStream(queue[idx]);
     try {
       await audio.play();
       isPlaying = true;

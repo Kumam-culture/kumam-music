@@ -5,11 +5,11 @@ const Pages = (() => {
   const DEFAULT_AVATAR = '/images/default-avatar.svg';
 
   const artwork = (song) => {
-    if (song.artwork) return `/uploads/artwork/${song.artwork}`;
-    if (song.album_artwork) return `/uploads/artwork/${song.album_artwork}`;
+    if (song.artwork) return API.artworkUrl(song.artwork);
+    if (song.album_artwork) return API.artworkUrl(song.album_artwork);
     return DEFAULT_COVER;
   };
-  const avatarUrl = (u) => u?.avatar ? `/uploads/profiles/${u.avatar}` : DEFAULT_AVATAR;
+  const avatarUrl = (u) => u?.avatar ? API.profileUrl(u.avatar) : DEFAULT_AVATAR;
   const fmtNum = (n) => n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : (n||0).toString();
   const fmtTime = (s) => { if(!s) return ''; const m=Math.floor(s/60); return `${m}:${String(Math.floor(s%60)).padStart(2,'0')}`; };
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-UG',{year:'numeric',month:'short',day:'numeric'}) : '';
@@ -74,7 +74,7 @@ const Pages = (() => {
 
   // ── Artist Card ────────────────────────────────────────
   const artistCard = (a) => {
-    const av = a.avatar ? `/uploads/profiles/${a.avatar}` : null;
+    const av = a.avatar ? API.profileUrl(a.avatar) : null;
     return `
       <div class="artist-card" onclick="App.navigate('artist:${a.uuid}')">
         <div class="artist-card-avatar">
@@ -91,7 +91,7 @@ const Pages = (() => {
 
   // ── Album Card ─────────────────────────────────────────
   const albumCard = (al) => {
-    const img = al.artwork ? `/uploads/artwork/${al.artwork}` : null;
+    const img = al.artwork ? API.artworkUrl(al.artwork) : null;
     return `
       <div class="album-card" onclick="App.navigate('album:${al.uuid}')">
         <div class="album-card-img">
@@ -526,7 +526,7 @@ const Pages = (() => {
       const res = await API.getAlbum(uuid);
       const al = res.album;
       const songs = res.songs || [];
-      const img = al.artwork ? `/uploads/artwork/${al.artwork}` : null;
+      const img = al.artwork ? API.artworkUrl(al.artwork) : null;
       container.innerHTML = `
         <div class="profile-header">
           <div class="profile-avatar" style="border-radius:12px;overflow:hidden;background:var(--bg-card)">
@@ -564,7 +564,7 @@ const Pages = (() => {
       const a = res.artist;
       const songs = res.songs || [];
       const albums = res.albums || [];
-      const av = a.avatar ? `/uploads/profiles/${a.avatar}` : null;
+      const av = a.avatar ? API.profileUrl(a.avatar) : null;
       container.innerHTML = `
         <div class="profile-header" style="background:linear-gradient(135deg,#1a0533,#0d1a33)">
           <div class="profile-avatar">
@@ -643,7 +643,7 @@ const Pages = (() => {
       const subRes = subResult.status === 'fulfilled' ? subResult.value : { active: null };
       const u = profileRes.user;
       const sub = subRes.active;
-      const av = u.avatar ? `/uploads/profiles/${u.avatar}` : null;
+      const av = u.avatar ? API.profileUrl(u.avatar) : null;
       container.innerHTML = `
         <div class="profile-header">
           <div class="profile-avatar">
@@ -836,7 +836,7 @@ const Pages = (() => {
               <div class="song-row" style="cursor:default">
                 <div class="song-num">${i+1}</div>
                 <div class="song-row-info">
-                  <div class="song-row-img"><img src="${s.artwork?`/uploads/artwork/${s.artwork}`:DEFAULT_COVER}" onerror="this.src='${DEFAULT_COVER}'" alt=""/></div>
+                  <div class="song-row-img"><img src="${s.artwork?API.artworkUrl(s.artwork):DEFAULT_COVER}" onerror="this.src='${DEFAULT_COVER}'" alt=""/></div>
                   <div><div class="song-row-title">${s.title}</div><div class="song-row-artist">${fmtNum(s.likes||0)} likes</div></div>
                 </div>
                 <div class="song-row-streams">${fmtNum(s.stream_count)} streams</div>
@@ -1039,7 +1039,7 @@ const Pages = (() => {
                 ${(res.songs||[]).map(s => `
                   <tr>
                     <td><div style="display:flex;align-items:center;gap:10px">
-                      <img src="${s.artwork?`/uploads/artwork/${s.artwork}`:DEFAULT_COVER}" style="width:36px;height:36px;border-radius:4px;object-fit:cover" onerror="this.src='${DEFAULT_COVER}'"/>
+                      <img src="${s.artwork?API.artworkUrl(s.artwork):DEFAULT_COVER}" style="width:36px;height:36px;border-radius:4px;object-fit:cover" onerror="this.src='${DEFAULT_COVER}'"/>
                       <span>${s.title}</span>
                     </div></td>
                     <td>${s.genre_name||'—'}</td>

@@ -1,16 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/database');
 const { authenticate, requireRole, optionalAuth } = require('../middleware/auth');
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'uploads', 'profiles')),
-  filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`)
-});
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+const { uploadProfile } = require('../config/cloudinary');
 
 // ── GET /api/artists/dashboard/stats  (BEFORE /:uuid) ──────────
 router.get('/dashboard/stats', authenticate, requireRole('artist'), async (req, res) => {
@@ -42,10 +36,10 @@ router.get('/dashboard/stats', authenticate, requireRole('artist'), async (req, 
 });
 
 // ── PUT /api/artists/profile  (BEFORE /:uuid) ──────────────────
-router.put('/profile', authenticate, requireRole('artist'), upload.single('avatar'), async (req, res) => {
+router.put('/profile', authenticate, requireRole('artist'), uploadProfile.single('avatar'), async (req, res) => {
   try {
     const { name, bio, stage_name, genre, location, website, social_instagram, social_twitter, mtn_number, airtel_number } = req.body;
-    const avatarPath = req.file?.filename || null;
+    const avatarPath = req.file?.path || null; // Cloudinary secure_url
 
     const uCols = [], uVals = [];
     if (name)        { uCols.push('name = ?');   uVals.push(name); }

@@ -1,16 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../config/database');
 const { authenticate, requireRole, optionalAuth } = require('../middleware/auth');
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'uploads', 'artwork')),
-  filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`)
-});
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+const { uploadArtwork } = require('../config/cloudinary');
 
 // ── GET /api/albums/artist/mine  (BEFORE /:id) ─────────────────
 router.get('/artist/mine', authenticate, requireRole('artist'), async (req, res) => {
@@ -96,12 +89,12 @@ router.get('/:id', optionalAuth, async (req, res) => {
 });
 
 // ── POST /api/albums ────────────────────────────────────────────
-router.post('/', authenticate, requireRole('artist'), upload.single('artwork'), async (req, res) => {
+router.post('/', authenticate, requireRole('artist'), uploadArtwork.single('artwork'), async (req, res) => {
   try {
     const { title, description, genre_id, release_date } = req.body;
     if (!title) return res.status(400).json({ error: 'Title required' });
     const uuid       = uuidv4();
-    const artworkPath= req.file?.filename || null;
+    const artworkPath= req.file?.path || null;  // Cloudinary secure_url
     const genreIdVal = genre_id ? parseInt(genre_id) : null;
     const [result] = await pool.query(
       'INSERT INTO albums (uuid,artist_id,title,description,artwork,genre_id,release_date,is_published) VALUES (?,?,?,?,?,?,?,TRUE)',
