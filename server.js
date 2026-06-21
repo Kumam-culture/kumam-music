@@ -13,6 +13,7 @@ const isProd = process.env.NODE_ENV === 'production';
 // Trust Railway/Heroku proxy for correct IPs and HTTPS detection
 app.set('trust proxy', 1);
 
+
 // Middleware
 app.use(cors());
 app.use(express.json());
