@@ -1,51 +1,44 @@
-// db.js
 const mysql = require('mysql2/promise');
 
-// Determine if we're on Railway
-const isRailway = !!process.env.RAILWAY_ENVIRONMENT;
+console.log('🔍 Checking environment variables:');
+console.log('MYSQLHOST:', process.env.MYSQLHOST || 'NOT SET');
+console.log('MYSQLUSER:', process.env.MYSQLUSER || 'NOT SET');
+console.log('MYSQLDATABASE:', process.env.MYSQLDATABASE || 'NOT SET');
+console.log('MYSQLPORT:', process.env.MYSQLPORT || 'NOT SET');
 
-// Connection configuration
-const getPoolConfig = () => {
-  if (process.env.DATABASE_URL) {
-    // Use Railway URL if available
-    return {
-      uri: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0
-    };
-  }
+// Use the variables directly from Railway
+const pool = mysql.createPool({
+  host: process.env.MYSQLHOST,
+  user: process.env.MYSQLUSER,
+  password: process.env.MYSQLPASSWORD,
+  database: process.env.MYSQLDATABASE,
+  port: parseInt(process.env.MYSQLPORT) || 3306,
+  ssl: {
+    rejectUnauthorized: false  // CRITICAL for Railway
+  },
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
 
-  // Fallback to individual environment variables
-  return {
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'railway',
-    port: parseInt(process.env.DB_PORT) || 3306,
-    ssl: isRailway ? { rejectUnauthorized: false } : undefined,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-  };
-};
-
-const pool = mysql.createPool(getPoolConfig());
-
-// Connection test with detailed logging
-(async () => {
+// Test the connection immediately
+(async function testConnection() {
   try {
     const connection = await pool.getConnection();
     console.log('✅ Database connected successfully!');
-    console.log(`📊 Database: ${process.env.DB_NAME || 'railway'}`);
+    console.log('📊 Connected to:', process.env.MYSQLDATABASE);
     connection.release();
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
-    console.error('📋 Connection details:');
-    console.error('  - Host:', process.env.DB_HOST || 'localhost');
-    console.error('  - Database:', process.env.DB_NAME || 'kumam_music');
-    console.error('  - Has SSL:', !!process.env.DATABASE_URL || isRailway);
+    console.error('❌ Database connection FAILED!');
+    console.error('Error:', error.message);
+    console.error('Error code:', error.code);
+    
+    // Log what we're trying to connect to (without password)
+    console.log('Connection attempt:');
+    console.log('  Host:', process.env.MYSQLHOST);
+    console.log('  User:', process.env.MYSQLUSER);
+    console.log('  Database:', process.env.MYSQLDATABASE);
+    console.log('  Port:', process.env.MYSQLPORT);
   }
 })();
 
