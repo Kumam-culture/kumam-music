@@ -684,7 +684,29 @@ input,select,textarea{font-family:inherit}
 .empty-state h3{font-size:20px;color:var(--text-secondary);margin-bottom:8px}
 .empty-state p{font-size:14px}
 
-/* ===== LOADING ===== */
+/* ===== DOWNLOAD BUTTON — clear label ===== */
+.download-btn-labeled {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.download-btn-labeled:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16,185,129,0.4);
+}
+.download-btn-labeled i { font-size: 11px; }
 .loading-spinner{
   display:flex;align-items:center;justify-content:center;
   padding:60px;
@@ -774,11 +796,37 @@ input,select,textarea{font-family:inherit}
   .hamburger { display: flex; font-size: 22px; }
 
   /* Topbar */
-  .topbar { padding: 10px 14px; gap: 10px; }
-  .search-bar { max-width: none; padding: 8px 14px; }
+  .topbar { padding: 10px 10px; gap: 8px; }
+  .topbar-left { flex: 1; min-width: 0; }
+  .topbar-right { flex-shrink: 0; }
+  .search-bar { max-width: none; padding: 8px 12px; }
   .search-bar input { font-size: 13px; }
-  .auth-buttons .btn { padding: 7px 14px; font-size: 13px; }
+
+  /* Auth buttons — always visible, compact on mobile */
+  .auth-buttons {
+    display: flex !important;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .auth-buttons #signInBtn {
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .auth-buttons #signUpBtn {
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
   #userNameDisplay { display: none; }
+  .user-avatar-wrap { padding: 4px 8px; gap: 6px; }
+  .user-avatar-wrap img { width: 30px; height: 30px; }
+  .user-avatar-wrap .fa-chevron-down { display: none; }
 
   /* Page content */
   .content { padding-bottom: calc(var(--player-h) + 72px); }
@@ -1141,6 +1189,12 @@ input,select,textarea{font-family:inherit}
   .artists-grid { grid-template-columns: repeat(2, 1fr); }
   .hero h1 { font-size: 22px; }
   .section { padding: 14px 12px; }
+
+  /* Shrink search bar to give more room to buttons */
+  .search-bar { padding: 7px 10px; }
+  .search-bar i { display: none; }
+  .auth-buttons #signInBtn,
+  .auth-buttons #signUpBtn { padding: 7px 10px; font-size: 11px; }
 }
 
 /* ── Desktop: keep original layout ─────────────────────────── */

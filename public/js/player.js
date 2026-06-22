@@ -81,7 +81,7 @@ const Player = (() => {
     likeBtn.querySelector('i').className = song.liked ? 'fas fa-heart' : 'far fa-heart';
     likeBtn.style.color = song.liked ? 'var(--accent)' : '';
     if (song.is_downloadable) {
-      downloadBtn.style.display = 'block';
+      downloadBtn.style.display = 'inline-flex';
       downloadBtn.onclick = () => downloadSong(song);
     } else {
       downloadBtn.style.display = 'none';
@@ -96,7 +96,7 @@ const Player = (() => {
       fsLikeBtn.classList.toggle('liked', !!song.liked);
     }
     if (fsDownloadBtn) {
-      fsDownloadBtn.style.display = song.is_downloadable ? 'block' : 'none';
+      fsDownloadBtn.style.display = song.is_downloadable ? 'inline-flex' : 'none';
       if (song.is_downloadable) fsDownloadBtn.onclick = () => downloadSong(song);
     }
     _syncPlayBtn(fsPlayPause, isPlaying);

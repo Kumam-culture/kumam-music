@@ -64,7 +64,7 @@ const Pages = (() => {
           <button onclick="event.stopPropagation();App.openAddToPlaylist('${song.uuid}')" title="Add to playlist">
             <i class="fas fa-plus"></i>
           </button>
-          ${song.is_downloadable ? `<button onclick="event.stopPropagation();App.downloadSong('${song.uuid}')" title="Download"><i class="fas fa-download"></i></button>` : ''}
+          ${song.is_downloadable ? `<button class="download-btn-labeled" onclick="event.stopPropagation();App.downloadSong('${song.uuid}')" title="Download"><i class="fas fa-download"></i> Download</button>` : ''}
           <button onclick="event.stopPropagation();App.openShare('song','${song.uuid}','${song.title.replace(/'/g,"\\'")}')" title="Share">
             <i class="fas fa-share-alt"></i>
           </button>

@@ -94,14 +94,14 @@ router.post('/initiate', authenticate, async (req, res) => {
     if ((plan === 'listener_premium' || plan === 'listener_premium_annual') && req.user.role === 'artist')
       return res.status(400).json({ error: 'Artists register for payment, not listener plans' });
 
-    // Validate phone
-    const mtnPattern   = /^(0?7[689]\d{7}|2567[689]\d{7})$/;
-    const airtelPattern = /^(0?7[012]\d{7}|2567[012]\d{7})$/;
-    const phone = payment_phone.replace(/\s/g,'');
-    if (payment_method === 'mtn' && !mtnPattern.test(phone))
-      return res.status(400).json({ error: 'Invalid MTN number. Format: 0761234567' });
-    if (payment_method === 'airtel' && !airtelPattern.test(phone))
-      return res.status(400).json({ error: 'Invalid Airtel number. Format: 0701234567' });
+    // Validate phone — accept any Ugandan 07xx or +2567xx (10 or 12 digits)
+    const cleanPhone = payment_phone.replace(/[\s\-\+]/g, '');
+    const ugandaPattern = /^(07\d{8}|2567\d{8}|7\d{8})$/;
+    if (!ugandaPattern.test(cleanPhone)) {
+      return res.status(400).json({
+        error: 'Enter a valid Ugandan mobile number starting with 07 (10 digits), e.g. 0761234567'
+      });
+    }
 
     const planInfo = PLANS[plan];
     const transactionRef = `KMM-${Date.now()}-${uuidv4().slice(0,8).toUpperCase()}`;
