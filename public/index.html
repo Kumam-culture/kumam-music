@@ -45,32 +45,37 @@
 <div class="main-container">
   <!-- TOPBAR -->
   <header class="topbar">
-    <div class="topbar-left">
+    <!-- Row 1: hamburger + auth/user (always visible) -->
+    <div class="topbar-row1">
       <button class="hamburger" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
+      <div class="topbar-brand">KUMAM <span>MUSIC</span></div>
+      <div class="topbar-actions">
+        <div id="guestActions" class="auth-buttons">
+          <button class="btn btn-outline btn-sm" id="signInBtn">Sign In</button>
+          <button class="btn btn-primary btn-sm" id="signUpBtn">Sign Up</button>
+        </div>
+        <div id="userMenu" class="user-menu hidden">
+          <div class="user-avatar-wrap" id="userAvatarBtn">
+            <img id="userAvatarImg" src="/images/default-avatar.svg" alt="Avatar"/>
+            <span id="userNameDisplay"></span>
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="user-dropdown hidden" id="userDropdown">
+            <a href="#" data-page="profile"><i class="fas fa-user"></i> Profile</a>
+            <a href="#" data-page="settings"><i class="fas fa-cog"></i> Settings</a>
+            <a href="#" data-page="subscription"><i class="fas fa-crown"></i> Subscription</a>
+            <div class="dropdown-divider"></div>
+            <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Row 2: search bar (full width) -->
+    <div class="topbar-row2">
       <div class="search-bar">
         <i class="fas fa-search"></i>
         <input type="text" id="searchInput" placeholder="Search songs, artists, albums..."/>
         <div id="searchDropdown" class="search-dropdown hidden"></div>
-      </div>
-    </div>
-    <div class="topbar-right">
-      <div id="guestActions" class="auth-buttons">
-        <button class="btn btn-outline" id="signInBtn">Sign In</button>
-        <button class="btn btn-primary" id="signUpBtn">Sign Up</button>
-      </div>
-      <div id="userMenu" class="user-menu hidden">
-        <div class="user-avatar-wrap" id="userAvatarBtn">
-          <img id="userAvatarImg" src="/images/default-avatar.svg" alt="Avatar"/>
-          <span id="userNameDisplay"></span>
-          <i class="fas fa-chevron-down"></i>
-        </div>
-        <div class="user-dropdown hidden" id="userDropdown">
-          <a href="#" data-page="profile"><i class="fas fa-user"></i> Profile</a>
-          <a href="#" data-page="settings"><i class="fas fa-cog"></i> Settings</a>
-          <a href="#" data-page="subscription"><i class="fas fa-crown"></i> Subscription</a>
-          <div class="dropdown-divider"></div>
-          <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
-        </div>
       </div>
     </div>
   </header>
@@ -110,6 +115,7 @@
   </div>
   <div class="player-right">
     <button class="player-btn" id="queueBtn" title="Queue"><i class="fas fa-list"></i></button>
+    <button class="player-btn" id="sharePlayerBtn" title="Share" style="display:none"><i class="fas fa-share-alt"></i></button>
     <button class="download-btn-labeled" id="downloadPlayerBtn" title="Download" style="display:none">
       <i class="fas fa-download"></i> Download
     </button>

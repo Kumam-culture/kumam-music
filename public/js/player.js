@@ -80,6 +80,14 @@ const Player = (() => {
     _syncPlayBtn(playPauseBtn, isPlaying);
     likeBtn.querySelector('i').className = song.liked ? 'fas fa-heart' : 'far fa-heart';
     likeBtn.style.color = song.liked ? 'var(--accent)' : '';
+    const sharePlayerBtn = document.getElementById('sharePlayerBtn');
+    if (sharePlayerBtn) {
+      sharePlayerBtn.style.display = 'block';
+      sharePlayerBtn.onclick = () => {
+        if (typeof App !== 'undefined') App.openShare('song', song.uuid, song.title);
+      };
+    }
+
     if (song.is_downloadable) {
       downloadBtn.style.display = 'inline-flex';
       downloadBtn.onclick = () => downloadSong(song);

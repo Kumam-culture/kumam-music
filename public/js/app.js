@@ -157,15 +157,18 @@ const App = (() => {
     const imgEl   = document.getElementById('userAvatarImg');
 
     if (user) {
-      guestEl?.classList.add('hidden');
-      userEl?.classList.remove('hidden');
-      if (nameEl) nameEl.textContent = user.name.split(' ')[0];
-      if (imgEl)  imgEl.src = user.avatar ? `/uploads/profiles/${user.avatar}` : '/images/default-avatar.svg';
+      // Hide Sign In / Sign Up, show avatar
+      if (guestEl) { guestEl.style.display = 'none'; guestEl.classList.add('hidden'); }
+      if (userEl)  { userEl.style.display  = '';     userEl.classList.remove('hidden'); }
+      if (nameEl)  nameEl.textContent = user.name.split(' ')[0];
+      if (imgEl)   imgEl.src = user.avatar ? API.profileUrl(user.avatar) : '/images/default-avatar.svg';
     } else {
-      guestEl?.classList.remove('hidden');
-      userEl?.classList.add('hidden');
+      // Show Sign In / Sign Up, hide avatar
+      if (guestEl) { guestEl.style.display = '';     guestEl.classList.remove('hidden'); }
+      if (userEl)  { userEl.style.display  = 'none'; userEl.classList.add('hidden'); }
     }
 
+    // Sidebar nav visibility
     document.querySelectorAll('.auth-required').forEach(el => el.classList.toggle('hidden', !user));
     document.querySelectorAll('.artist-only').forEach(el => el.classList.toggle('hidden', user?.role !== 'artist'));
     document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', user?.role !== 'admin'));
@@ -668,7 +671,59 @@ const App = (() => {
 
   // ── Init all modal close/event bindings ──────────────────
   const initModals = () => {
-    // Help
+    // ── 3-dot song context menu (global, event-delegated) ───
+    // One floating dropdown reused for all songs
+    const ctxMenu = document.createElement('div');
+    ctxMenu.className = 'song-actions-dropdown';
+    ctxMenu.id = 'songCtxMenu';
+    ctxMenu.style.display = 'none';
+    document.body.appendChild(ctxMenu);
+
+    let ctxSong = null; // current song data for context menu
+
+    // Open menu when any trigger is clicked
+    document.addEventListener('click', (e) => {
+      const trigger = e.target.closest('.song-actions-trigger');
+      if (trigger) {
+        e.stopPropagation();
+        const dataEl = trigger.closest('[data-song]');
+        if (!dataEl) return;
+        try { ctxSong = JSON.parse(dataEl.dataset.song); } catch (err) { return; }
+
+        // Build menu items
+        const items = [];
+        items.push(`<button class="song-action-item" onclick="App.openAddToPlaylist('${ctxSong.uuid}');App.closeCtxMenu()"><i class="fas fa-plus"></i> Add to Playlist</button>`);
+        items.push(`<button class="song-action-item share-btn-item" onclick="App.openShare('song','${ctxSong.uuid}','${(ctxSong.title||'').replace(/'/g,"\\'")}');App.closeCtxMenu()"><i class="fas fa-share-alt"></i> Share</button>`);
+        if (ctxSong.is_downloadable) {
+          items.push(`<button class="song-action-item download" onclick="App.downloadSong('${ctxSong.uuid}');App.closeCtxMenu()"><i class="fas fa-download"></i> Download</button>`);
+        }
+        ctxMenu.innerHTML = items.join('');
+
+        // Position the menu near the trigger
+        const rect = trigger.getBoundingClientRect();
+        ctxMenu.style.display = 'block';
+        const menuH = ctxMenu.offsetHeight || 140;
+        const menuW = ctxMenu.offsetWidth  || 180;
+        let top  = rect.bottom + 4;
+        let left = rect.right  - menuW;
+        if (top + menuH > window.innerHeight - 20) top = rect.top - menuH - 4;
+        if (left < 8) left = 8;
+        ctxMenu.style.top  = `${top}px`;
+        ctxMenu.style.left = `${left}px`;
+        return;
+      }
+      // Click anywhere else → close menu
+      ctxMenu.style.display = 'none';
+    });
+
+    window.addEventListener('scroll', () => { ctxMenu.style.display = 'none'; }, true);
+
+    // ── Player share button ─────────────────────────────────
+    document.getElementById('sharePlayerBtn')?.addEventListener('click', () => {
+      const song = Player.getCurrent();
+      if (!song) return;
+      openShare('song', song.uuid, song.title);
+    });
     document.getElementById('helpFab')?.addEventListener('click', () =>
       document.getElementById('helpOverlay')?.classList.remove('hidden'));
     document.getElementById('helpOverlay')?.addEventListener('click', (e) => {
@@ -772,6 +827,11 @@ const App = (() => {
     });
   };
 
+  const closeCtxMenu = () => {
+    const m = document.getElementById('songCtxMenu');
+    if (m) m.style.display = 'none';
+  };
+
   // ── Boot ─────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', init);
 
@@ -780,7 +840,7 @@ const App = (() => {
     showNotification, toggleLike, toggleFollow,
     openAddToPlaylist, addSongToPlaylist, createPlaylistPrompt,
     playAllFromPlaylist, playSongFromRow, playFromSearch,
-    downloadSong, deleteSong,
+    downloadSong, deleteSong, closeCtxMenu,
     adminToggleUser, adminDeleteUser, adminToggleSong, adminDeleteSong, adminApproveSub,
     deleteAccount,
     loadNotifications, dismissNotification, dismissAllNotifications, updateNotifBadge,

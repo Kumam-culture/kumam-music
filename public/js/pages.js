@@ -31,12 +31,9 @@ const Pages = (() => {
             <button class="like-btn-song ${song.liked?'liked':''}" data-uuid="${song.uuid}" onclick="event.stopPropagation();App.toggleLike(this,'${song.uuid}')" title="Like">
               <i class="${song.liked?'fas':'far'} fa-heart"></i>
             </button>
-            <button onclick="event.stopPropagation();App.openAddToPlaylist('${song.uuid}')" title="Add to playlist">
-              <i class="fas fa-plus"></i>
-            </button>
-            <button onclick="event.stopPropagation();App.openShare('song','${song.uuid}','${song.title.replace(/'/g,"\\'")}')" title="Share">
-              <i class="fas fa-share-alt"></i>
-            </button>
+            <div class="song-actions-menu" data-song='${JSON.stringify({uuid:song.uuid,title:song.title,is_downloadable:song.is_downloadable}).replace(/'/g,"&#39;")}' onclick="event.stopPropagation()">
+              <button class="song-actions-trigger" title="More options"><i class="fas fa-ellipsis-v"></i></button>
+            </div>
           </div>
         </div>
       </div>`;
@@ -55,19 +52,13 @@ const Pages = (() => {
             ${showArtist ? `<div class="song-row-artist">${song.stage_name || song.artist_name || ''}</div>` : ''}
           </div>
         </div>
-        <div class="song-row-streams">${fmtNum(song.stream_count)}</div>
-        <div class="song-row-duration">${fmtTime(song.duration)}</div>
         <div class="song-row-actions">
           <button class="like-btn-song ${song.liked?'liked':''}" data-uuid="${song.uuid}" onclick="event.stopPropagation();App.toggleLike(this,'${song.uuid}')" title="Like">
             <i class="${song.liked?'fas':'far'} fa-heart"></i>
           </button>
-          <button onclick="event.stopPropagation();App.openAddToPlaylist('${song.uuid}')" title="Add to playlist">
-            <i class="fas fa-plus"></i>
-          </button>
-          ${song.is_downloadable ? `<button class="download-btn-labeled" onclick="event.stopPropagation();App.downloadSong('${song.uuid}')" title="Download"><i class="fas fa-download"></i> Download</button>` : ''}
-          <button onclick="event.stopPropagation();App.openShare('song','${song.uuid}','${song.title.replace(/'/g,"\\'")}')" title="Share">
-            <i class="fas fa-share-alt"></i>
-          </button>
+          <div class="song-actions-menu" data-song='${JSON.stringify({uuid:song.uuid,title:song.title,is_downloadable:!!song.is_downloadable}).replace(/'/g,"&#39;")}' onclick="event.stopPropagation()">
+            <button class="song-actions-trigger" title="More options"><i class="fas fa-ellipsis-v"></i></button>
+          </div>
         </div>
       </div>`;
   };
