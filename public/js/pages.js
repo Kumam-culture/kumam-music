@@ -31,7 +31,7 @@ const Pages = (() => {
             <button class="like-btn-song ${song.liked?'liked':''}" data-uuid="${song.uuid}" onclick="event.stopPropagation();App.toggleLike(this,'${song.uuid}')" title="Like">
               <i class="${song.liked?'fas':'far'} fa-heart"></i>
             </button>
-            <div class="song-actions-menu" data-song='${JSON.stringify({uuid:song.uuid,title:song.title,is_downloadable:song.is_downloadable}).replace(/'/g,"&#39;")}' onclick="event.stopPropagation()">
+            <div class="song-actions-menu" data-song="${encodeURIComponent(JSON.stringify({uuid:song.uuid,title:song.title,is_downloadable:!!song.is_downloadable,liked:!!song.liked}))}" onclick="event.stopPropagation()">
               <button class="song-actions-trigger" title="More options"><i class="fas fa-ellipsis-v"></i></button>
             </div>
           </div>
@@ -56,7 +56,7 @@ const Pages = (() => {
           <button class="like-btn-song ${song.liked?'liked':''}" data-uuid="${song.uuid}" onclick="event.stopPropagation();App.toggleLike(this,'${song.uuid}')" title="Like">
             <i class="${song.liked?'fas':'far'} fa-heart"></i>
           </button>
-          <div class="song-actions-menu" data-song='${JSON.stringify({uuid:song.uuid,title:song.title,is_downloadable:!!song.is_downloadable}).replace(/'/g,"&#39;")}' onclick="event.stopPropagation()">
+          <div class="song-actions-menu" data-song="${encodeURIComponent(JSON.stringify({uuid:song.uuid,title:song.title,is_downloadable:!!song.is_downloadable,liked:!!song.liked}))}" onclick="event.stopPropagation()">
             <button class="song-actions-trigger" title="More options"><i class="fas fa-ellipsis-v"></i></button>
           </div>
         </div>
@@ -153,7 +153,7 @@ const Pages = (() => {
         <div class="tribal-border"></div>
         <div class="hero">
           <div class="hero-content">
-            <div class="hero-badge"><i class="fas fa-drum"></i> KUMAM MUSIC</div>
+            <div class="hero-badge"><img src="/images/kumam-drum-logo.png" alt="" style="height:18px;object-fit:contain;border-radius:3px"/> KUMAM MUSIC</div>
             <h1>${user ? `Hey, ${user.name.split(' ')[0]}! 👋<br/>` : ''}<span class="highlight">Feel the Rhythm,</span><br/>Live the Culture</h1>
             <p>Stream authentic Kumam music — Gospel, Afrobeats, Hip-Hop, Dancehall, RnB and more. Support your favourite local artists.</p>
             <div class="hero-cta">
@@ -770,21 +770,45 @@ const Pages = (() => {
   // SETTINGS PAGE
   // ════════════════════════════════════════════════════════
   const renderSettings = (container) => {
+    const isDark = document.body.classList.contains('dark-mode');
     container.innerHTML = `
       <div class="section">
         <div class="section-header"><h2 class="section-title"><i class="fas fa-cog"></i> Settings</h2></div>
         <div style="max-width:500px">
-          <div class="stat-card" style="margin-bottom:16px">
-            <h3 style="margin-bottom:16px;font-size:16px">Account Settings</h3>
-            <button class="btn btn-outline w-full" style="margin-bottom:10px" onclick="App.navigate('profile')"><i class="fas fa-user"></i> Edit Profile</button>
-            <button class="btn btn-outline w-full" style="margin-bottom:10px" onclick="Auth.showSubscription()"><i class="fas fa-crown"></i> Manage Subscription</button>
+
+          <h3 style="font-size:14px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Appearance</h3>
+          <div class="theme-toggle-wrap">
+            <div class="theme-toggle-info">
+              <div class="label">Dark Mode</div>
+              <div class="desc">Switch between light and dark theme</div>
+            </div>
+            <label class="theme-toggle-switch">
+              <input type="checkbox" id="darkModeToggle" ${isDark ? 'checked' : ''}/>
+              <span class="theme-toggle-slider"></span>
+            </label>
           </div>
+
+          <h3 style="font-size:14px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px">Account</h3>
+          <div class="stat-card" style="margin-bottom:12px">
+            <button class="btn btn-outline w-full" style="margin-bottom:10px" onclick="App.navigate('profile')"><i class="fas fa-user"></i> Edit Profile</button>
+            <button class="btn btn-outline w-full" onclick="Auth.showSubscription()"><i class="fas fa-crown"></i> Manage Subscription</button>
+          </div>
+
+          <h3 style="font-size:14px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px">Support</h3>
+          <div class="stat-card" style="margin-bottom:12px">
+            <button class="btn btn-outline w-full" onclick="document.getElementById('helpOverlay').classList.remove('hidden')"><i class="fas fa-headset"></i> Help & Support</button>
+          </div>
+
+          <h3 style="font-size:14px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px">Danger Zone</h3>
           <div class="stat-card">
-            <h3 style="margin-bottom:16px;font-size:16px">Privacy & Security</h3>
             <button class="btn btn-danger w-full" onclick="App.deleteAccount()"><i class="fas fa-trash"></i> Delete Account</button>
           </div>
         </div>
       </div>`;
+
+    document.getElementById('darkModeToggle')?.addEventListener('change', (e) => {
+      App.setTheme(e.target.checked ? 'dark' : 'light');
+    });
   };
 
   // ════════════════════════════════════════════════════════

@@ -671,52 +671,133 @@ const App = (() => {
 
   // ── Init all modal close/event bindings ──────────────────
   const initModals = () => {
-    // ── 3-dot song context menu (global, event-delegated) ───
-    // One floating dropdown reused for all songs
+
+    // ── 3-dot song context menu ─────────────────────────────
+    // Create one shared dropdown, appended to body
     const ctxMenu = document.createElement('div');
+    ctxMenu.id        = 'songCtxMenu';
     ctxMenu.className = 'song-actions-dropdown';
-    ctxMenu.id = 'songCtxMenu';
-    ctxMenu.style.display = 'none';
+    ctxMenu.setAttribute('role', 'menu');
+    ctxMenu.style.cssText = 'display:none;position:fixed;z-index:9999;';
     document.body.appendChild(ctxMenu);
 
-    let ctxSong = null; // current song data for context menu
+    let menuOpen = false;
 
-    // Open menu when any trigger is clicked
+    const closeMenu = () => {
+      ctxMenu.style.display = 'none';
+      menuOpen = false;
+    };
+
+    const openMenu = (trigger, songData) => {
+      const liked = songData.liked;
+      const likeIcon  = liked ? 'fas fa-heart' : 'far fa-heart';
+      const likeLabel = liked ? 'Unlike Song'  : 'Like Song';
+      const likeColor = liked ? 'color:var(--accent)' : '';
+
+      ctxMenu.innerHTML = `
+        <button class="song-action-item" id="ctxLike" style="${likeColor}">
+          <i class="${likeIcon}" style="color:inherit"></i> ${likeLabel}
+        </button>
+        <button class="song-action-item" id="ctxPlaylist">
+          <i class="fas fa-plus"></i> Add to Playlist
+        </button>
+        <button class="song-action-item share-btn-item" id="ctxShare">
+          <i class="fas fa-share-alt"></i> Share
+        </button>
+        ${songData.is_downloadable ? `
+        <button class="song-action-item download" id="ctxDownload">
+          <i class="fas fa-download"></i> Download
+        </button>` : ''}
+      `;
+
+      // Wire up actions (using addEventListener, not inline onclick)
+      ctxMenu.querySelector('#ctxLike')?.addEventListener('click', () => {
+        closeMenu();
+        // Find the like button for this song and click it
+        const likeBtn = document.querySelector(`.like-btn-song[data-uuid="${songData.uuid}"]`);
+        if (likeBtn) likeBtn.click();
+        else if (currentUser) API.likeSong(songData.uuid).then(r => showNotification(r.liked ? 'Added to liked songs ❤️' : 'Removed from liked songs')).catch(() => {});
+        else Auth.showSignIn();
+      });
+
+      ctxMenu.querySelector('#ctxPlaylist')?.addEventListener('click', () => {
+        closeMenu();
+        openAddToPlaylist(songData.uuid);
+      });
+
+      ctxMenu.querySelector('#ctxShare')?.addEventListener('click', () => {
+        closeMenu();
+        openShare('song', songData.uuid, songData.title);
+      });
+
+      ctxMenu.querySelector('#ctxDownload')?.addEventListener('click', () => {
+        closeMenu();
+        downloadSong(songData.uuid);
+      });
+
+      // Position: show first (off-screen) to measure, then place correctly
+      ctxMenu.style.display = 'block';
+      ctxMenu.style.top  = '-9999px';
+      ctxMenu.style.left = '-9999px';
+
+      const rect   = trigger.getBoundingClientRect();
+      const menuW  = ctxMenu.offsetWidth  || 200;
+      const menuH  = ctxMenu.offsetHeight || 160;
+      const vw     = window.innerWidth;
+      const vh     = window.innerHeight;
+
+      let top  = rect.bottom + 6;
+      let left = rect.right - menuW;
+
+      // Flip up if no room below
+      if (top + menuH > vh - 16) top = rect.top - menuH - 6;
+      // Keep within left edge
+      if (left < 8) left = 8;
+      // Keep within right edge
+      if (left + menuW > vw - 8) left = vw - menuW - 8;
+
+      ctxMenu.style.top  = `${top}px`;
+      ctxMenu.style.left = `${left}px`;
+      menuOpen = true;
+    };
+
+    // Event delegation — listen on document for trigger clicks
     document.addEventListener('click', (e) => {
+      // If clicked inside the open menu → let the button handlers above run
+      if (ctxMenu.contains(e.target)) return;
+
+      // If clicked a trigger button
       const trigger = e.target.closest('.song-actions-trigger');
       if (trigger) {
+        e.preventDefault();
         e.stopPropagation();
-        const dataEl = trigger.closest('[data-song]');
-        if (!dataEl) return;
-        try { ctxSong = JSON.parse(dataEl.dataset.song); } catch (err) { return; }
 
-        // Build menu items
-        const items = [];
-        items.push(`<button class="song-action-item" onclick="App.openAddToPlaylist('${ctxSong.uuid}');App.closeCtxMenu()"><i class="fas fa-plus"></i> Add to Playlist</button>`);
-        items.push(`<button class="song-action-item share-btn-item" onclick="App.openShare('song','${ctxSong.uuid}','${(ctxSong.title||'').replace(/'/g,"\\'")}');App.closeCtxMenu()"><i class="fas fa-share-alt"></i> Share</button>`);
-        if (ctxSong.is_downloadable) {
-          items.push(`<button class="song-action-item download" onclick="App.downloadSong('${ctxSong.uuid}');App.closeCtxMenu()"><i class="fas fa-download"></i> Download</button>`);
+        // If same menu is open, toggle it closed
+        if (menuOpen) { closeMenu(); return; }
+
+        // Read song data from the closest [data-song] parent
+        const wrap = trigger.closest('.song-actions-menu');
+        if (!wrap) return;
+
+        let songData;
+        try {
+          // dataset.song is URL-encoded JSON
+          songData = JSON.parse(decodeURIComponent(wrap.getAttribute('data-song')));
+        } catch (err) {
+          console.warn('Could not parse song data:', err);
+          return;
         }
-        ctxMenu.innerHTML = items.join('');
-
-        // Position the menu near the trigger
-        const rect = trigger.getBoundingClientRect();
-        ctxMenu.style.display = 'block';
-        const menuH = ctxMenu.offsetHeight || 140;
-        const menuW = ctxMenu.offsetWidth  || 180;
-        let top  = rect.bottom + 4;
-        let left = rect.right  - menuW;
-        if (top + menuH > window.innerHeight - 20) top = rect.top - menuH - 4;
-        if (left < 8) left = 8;
-        ctxMenu.style.top  = `${top}px`;
-        ctxMenu.style.left = `${left}px`;
+        openMenu(trigger, songData);
         return;
       }
-      // Click anywhere else → close menu
-      ctxMenu.style.display = 'none';
-    });
 
-    window.addEventListener('scroll', () => { ctxMenu.style.display = 'none'; }, true);
+      // Clicked outside → close
+      if (menuOpen) closeMenu();
+    }, true); // use capture so it fires before stopPropagation elsewhere
+
+    // Close on scroll or ESC
+    window.addEventListener('scroll', closeMenu, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 
     // ── Player share button ─────────────────────────────────
     document.getElementById('sharePlayerBtn')?.addEventListener('click', () => {
@@ -832,8 +913,31 @@ const App = (() => {
     if (m) m.style.display = 'none';
   };
 
+  // ── Theme ────────────────────────────────────────────────
+  const setTheme = (mode) => {
+    if (mode === 'dark') {
+      document.body.classList.add('dark-mode');
+      localStorage.setItem('kumam_theme', 'dark');
+    } else {
+      document.body.classList.remove('dark-mode');
+      localStorage.setItem('kumam_theme', 'light');
+    }
+    const toggle = document.getElementById('darkModeToggle');
+    if (toggle) toggle.checked = (mode === 'dark');
+  };
+
+  const loadTheme = () => {
+    if (localStorage.getItem('kumam_theme') === 'dark') {
+      document.body.classList.add('dark-mode');
+    }
+    // Default is light — nothing to do
+  };
+
   // ── Boot ─────────────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => {
+    loadTheme();
+    init();
+  });
 
   return {
     navigate, getUser, setUser, updateNavForUser,
@@ -842,7 +946,7 @@ const App = (() => {
     playAllFromPlaylist, playSongFromRow, playFromSearch,
     downloadSong, deleteSong, closeCtxMenu,
     adminToggleUser, adminDeleteUser, adminToggleSong, adminDeleteSong, adminApproveSub,
-    deleteAccount,
+    deleteAccount, setTheme,
     loadNotifications, dismissNotification, dismissAllNotifications, updateNotifBadge,
     openShare, copyShareLink, nativeShare,
     openDonation, checkDonationStatus, showDonationBreakdown,
