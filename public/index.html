@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Etokwa Music — Streaming Platform</title>
+  <link rel="stylesheet" href="/css/style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+</head>
+<body>
+<!-- SIDEBAR -->
+<div id="sidebar" class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <img src="/images/kumam-drum-logo.png" alt="Kumam Drum" style="width:36px;height:36px;object-fit:contain;border-radius:8px;"/>
+    </div>
+    <div class="logo-text">
+      <span class="logo-main">ETOKWA</span>
+      <span class="logo-sub">MUSIC</span>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-link active" data-page="home"><i class="fas fa-home"></i><span>Home</span></a>
+    <a href="#" class="nav-link" data-page="discover"><i class="fas fa-compass"></i><span>Discover</span></a>
+    <a href="#" class="nav-link" data-page="genres"><i class="fas fa-music"></i><span>Genres</span></a>
+    <a href="#" class="nav-link" data-page="charts"><i class="fas fa-chart-bar"></i><span>Charts</span></a>
+    <div class="nav-divider"></div>
+    <a href="#" class="nav-link auth-required" data-page="library"><i class="fas fa-book-open"></i><span>My Library</span></a>
+    <a href="#" class="nav-link auth-required" data-page="liked"><i class="fas fa-heart"></i><span>Liked Songs</span></a>
+    <a href="#" class="nav-link auth-required" data-page="playlists"><i class="fas fa-list-music"></i><span>Playlists</span></a>
+    <a href="#" class="nav-link auth-required" data-page="history"><i class="fas fa-history"></i><span>History</span></a>
+    <a href="#" class="nav-link auth-required" data-page="notifications-page" id="navNotifLink">
+      <i class="fas fa-bell"></i><span>Notifications</span>
+      <span class="notif-badge hidden" id="navNotifBadge">0</span>
+    </a>
+    <div class="nav-divider"></div>
+    <a href="#" class="nav-link artist-only" data-page="artist-dashboard"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
+    <a href="#" class="nav-link artist-only" data-page="upload"><i class="fas fa-upload"></i><span>Upload</span></a>
+    <a href="#" class="nav-link admin-only" data-page="admin"><i class="fas fa-shield-alt"></i><span>Admin</span></a>
+  </nav>
+  <div class="sidebar-genres" id="sidebarGenres"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main-container">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <!-- Row 1: hamburger + auth/user (always visible) -->
+    <div class="topbar-row1">
+      <button class="hamburger" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
+      <div class="topbar-brand">
+        <img src="/images/kumam-drum-logo.png" alt="" style="height:28px;object-fit:contain;vertical-align:middle;margin-right:6px;border-radius:4px;"/>
+        ETOKWA <span>MUSIC</span>
+      </div>
+      <div class="topbar-actions">
+        <div id="guestActions" class="auth-buttons">
+          <button class="btn btn-outline btn-sm" id="signInBtn">Sign In</button>
+          <button class="btn btn-primary btn-sm" id="signUpBtn">Sign Up</button>
+        </div>
+        <div id="userMenu" class="user-menu hidden">
+          <div class="user-avatar-wrap" id="userAvatarBtn">
+            <img id="userAvatarImg" src="/images/default-avatar.svg" alt="Avatar"/>
+            <span id="userNameDisplay"></span>
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="user-dropdown hidden" id="userDropdown">
+            <a href="#" data-page="profile"><i class="fas fa-user"></i> Profile</a>
+            <a href="#" data-page="settings"><i class="fas fa-cog"></i> Settings</a>
+            <a href="#" data-page="subscription"><i class="fas fa-crown"></i> Subscription</a>
+            <div class="dropdown-divider"></div>
+            <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Row 2: search bar (full width) -->
+    <div class="topbar-row2">
+      <div class="search-bar">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Search songs, artists, albums..."/>
+        <div id="searchDropdown" class="search-dropdown hidden"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE CONTENT -->
+  <main class="content" id="pageContent"></main>
+</div>
+
+<!-- MUSIC PLAYER -->
+<div class="player" id="musicPlayer">
+  <div class="player-left">
+    <div class="player-artwork" id="playerArtwork">
+      <img id="playerCover" src="/images/default-cover.svg" alt="Cover"/>
+    </div>
+    <div class="player-info">
+      <div class="player-title" id="playerTitle">No song playing</div>
+      <div class="player-artist" id="playerArtist">—</div>
+    </div>
+    <button class="player-btn like-btn" id="playerLikeBtn" title="Like"><i class="far fa-heart"></i></button>
+  </div>
+  <div class="player-center">
+    <div class="player-controls">
+      <button class="player-btn" id="shuffleBtn" title="Shuffle"><i class="fas fa-random"></i></button>
+      <button class="player-btn" id="prevBtn" title="Previous"><i class="fas fa-step-backward"></i></button>
+      <button class="player-btn play-pause" id="playPauseBtn" title="Play/Pause"><i class="fas fa-play"></i></button>
+      <button class="player-btn" id="nextBtn" title="Next"><i class="fas fa-step-forward"></i></button>
+      <button class="player-btn" id="repeatBtn" title="Repeat"><i class="fas fa-redo"></i></button>
+    </div>
+    <div class="player-progress">
+      <span id="currentTime">0:00</span>
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+        <div class="progress-thumb" id="progressThumb"></div>
+      </div>
+      <span id="totalTime">0:00</span>
+    </div>
+  </div>
+  <div class="player-right">
+    <button class="player-btn" id="queueBtn" title="Queue"><i class="fas fa-list"></i></button>
+    <button class="player-btn" id="sharePlayerBtn" title="Share" style="display:none"><i class="fas fa-share-alt"></i></button>
+    <button class="download-btn-labeled" id="downloadPlayerBtn" title="Download" style="display:none">
+      <i class="fas fa-download"></i> Download
+    </button>
+    <div class="volume-control">
+      <button class="player-btn" id="muteBtn" title="Mute"><i class="fas fa-volume-up"></i></button>
+      <div class="volume-bar" id="volumeBar">
+        <div class="volume-fill" id="volumeFill" style="width:80%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QUEUE PANEL -->
+<div class="queue-panel hidden" id="queuePanel">
+  <div class="queue-header">
+    <h3>Queue</h3>
+    <button id="closeQueueBtn"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="queue-list" id="queueList"></div>
+</div>
+
+<!-- AUTH MODALS -->
+<div class="modal-overlay hidden" id="authOverlay">
+  <!-- Sign In Modal -->
+  <div class="modal" id="signInModal">
+    <button class="modal-close" data-close="signInModal"><i class="fas fa-times"></i></button>
+    <div class="modal-logo">
+      <img src="/images/kumam-drum-logo.png" alt="Etokwa Music" style="height:48px;object-fit:contain;margin:0 auto 4px;display:block;"/>
+      ETOKWA MUSIC
+    </div>
+    <h2>Sign In</h2>
+    <div id="signInError" class="alert alert-error hidden"></div>
+    <form id="signInForm">
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="signinEmail" placeholder="you@example.com" required/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="password-wrap">
+          <input type="password" id="signinPassword" placeholder="••••••••" required/>
+          <i class="fas fa-eye toggle-pwd"></i>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="signInSubmit">
+        <span>Sign In</span><i class="fas fa-spinner fa-spin hidden"></i>
+      </button>
+    </form>
+    <p class="auth-switch">Don't have an account? <a href="#" id="toSignUp">Sign Up</a></p>
+  </div>
+
+  <!-- Sign Up Modal -->
+  <div class="modal hidden" id="signUpModal">
+    <button class="modal-close" data-close="signUpModal"><i class="fas fa-times"></i></button>
+    <div class="modal-logo">
+      <img src="/images/kumam-drum-logo.png" alt="Etokwa Music" style="height:48px;object-fit:contain;margin:0 auto 4px;display:block;"/>
+      ETOKWA MUSIC
+    </div>
+    <h2>Create Account</h2>
+    <div class="account-type-tabs">
+      <button class="tab-btn active" data-type="listener"><i class="fas fa-headphones"></i> Listener</button>
+      <button class="tab-btn" data-type="artist"><i class="fas fa-microphone"></i> Artist</button>
+    </div>
+    <div id="signUpError" class="alert alert-error hidden"></div>
+    <form id="signUpForm">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="signupName" placeholder="Your full name" required/>
+      </div>
+      <div class="form-group artist-field hidden">
+        <label>Stage Name</label>
+        <input type="text" id="signupStageName" placeholder="Your stage name"/>
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="signupEmail" placeholder="you@example.com" required/>
+      </div>
+      <div class="form-group">
+        <label>Phone Number</label>
+        <input type="tel" id="signupPhone" placeholder="0761234567"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="password-wrap">
+          <input type="password" id="signupPassword" placeholder="Min 8 characters" required/>
+          <i class="fas fa-eye toggle-pwd"></i>
+        </div>
+      </div>
+      <div class="artist-field hidden" id="artistSubscriptionNote">
+        <div class="subscription-info">
+          <i class="fas fa-info-circle"></i>
+          <div>
+            <strong>Artist Subscription: UGX 15,000/year</strong>
+            <p>You'll complete payment after registration via MTN or Airtel Mobile Money.</p>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="signUpSubmit">
+        <span>Create Account</span><i class="fas fa-spinner fa-spin hidden"></i>
+      </button>
+    </form>
+    <p class="auth-switch">Already have an account? <a href="#" id="toSignIn">Sign In</a></p>
+  </div>
+
+  <!-- Subscription Payment Modal -->
+  <div class="modal hidden" id="subscriptionModal">
+    <button class="modal-close" data-close="subscriptionModal"><i class="fas fa-times"></i></button>
+    <div class="modal-logo"><i class="fas fa-crown"></i></div>
+    <h2 id="subModalTitle">Complete Your Subscription</h2>
+    <p id="subModalDesc" class="sub-desc"></p>
+    <div id="subModalError" class="alert alert-error hidden"></div>
+    <div id="subModalSuccess" class="alert alert-success hidden"></div>
+    <form id="subscriptionForm">
+      <div class="form-group">
+        <label>Choose Plan</label>
+        <div class="plan-cards" id="planCards"></div>
+      </div>
+      <div class="form-group">
+        <label>Payment Method</label>
+        <div class="payment-methods">
+          <label class="payment-option">
+            <input type="radio" name="payment_method" value="mtn" required/>
+            <div class="payment-card mtn"><img src="/images/mtn-logo.svg" alt="MTN"/><span>MTN Mobile Money</span></div>
+          </label>
+          <label class="payment-option">
+            <input type="radio" name="payment_method" value="airtel"/>
+            <div class="payment-card airtel"><img src="/images/airtel-logo.svg" alt="Airtel"/><span>Airtel Money</span></div>
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Mobile Money Number</label>
+        <input type="tel" id="paymentPhone" placeholder="e.g. 0761234567" required/>
+        <small class="mtn-hint">MTN: 076/078/077 &nbsp;|&nbsp; Airtel: 070/071/072</small>
+      </div>
+      <div id="termsCheckRow" class="hidden" style="margin-bottom:14px">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text-secondary)">
+          <input type="checkbox" id="subTermsCheck" style="margin-top:3px;accent-color:var(--accent);flex-shrink:0"/>
+          <span>I have read and agree to the <a href="#" onclick="event.preventDefault();document.getElementById('termsOverlay').classList.remove('hidden')" style="color:var(--accent);font-weight:600">Terms & Conditions</a> for Artist Payment Registration. I understand the UGX 15,000 fee is non-refundable.</span>
+        </label>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="paymentSubmit">
+        <span>Pay Now</span><i class="fas fa-spinner fa-spin hidden"></i>
+      </button>
+    </form>
+    <div class="payment-pending hidden" id="paymentPending">
+      <div class="pending-icon"><i class="fas fa-mobile-alt"></i></div>
+      <h3>Awaiting Payment Approval</h3>
+      <p id="pendingInstructions"></p>
+      <div class="pending-timer" id="pendingTimer">Checking... <span id="timerCount">30</span>s</div>
+      <button class="btn btn-outline" id="checkPaymentBtn">Check Payment Status</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TO PLAYLIST MODAL -->
+<div class="modal-overlay hidden" id="playlistOverlay">
+  <div class="modal small-modal" id="addToPlaylistModal">
+    <button class="modal-close" data-close-overlay="playlistOverlay"><i class="fas fa-times"></i></button>
+    <h3>Add to Playlist</h3>
+    <div id="playlistModalList" class="playlist-modal-list"></div>
+    <button class="btn btn-outline btn-full" id="createPlaylistFromModal">
+      <i class="fas fa-plus"></i> New Playlist
+    </button>
+  </div>
+</div>
+
+<!-- SHARE MODAL -->
+<div class="modal-overlay hidden" id="shareOverlay">
+  <div class="modal small-modal" id="shareModal">
+    <button class="modal-close" onclick="document.getElementById('shareOverlay').classList.add('hidden')">
+      <i class="fas fa-times"></i>
+    </button>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:54px;height:54px;background:var(--accent-glow);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:22px;color:var(--accent)">
+        <i class="fas fa-share-alt"></i>
+      </div>
+      <h3 id="shareModalTitle" style="font-size:18px;margin-bottom:4px">Share</h3>
+      <p id="shareModalSubtitle" style="color:var(--text-muted);font-size:13px"></p>
+    </div>
+    <div class="share-link-box">
+      <input type="text" id="shareLinkInput" readonly style="background:var(--bg-primary);border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text-primary);width:100%;font-size:13px;outline:none"/>
+      <button class="btn btn-primary btn-sm" id="copyLinkBtn" onclick="App.copyShareLink()">
+        <i class="fas fa-copy"></i> Copy
+      </button>
+    </div>
+    <div class="share-options">
+      <a id="shareWhatsApp" href="#" target="_blank" class="share-btn whatsapp">
+        <i class="fab fa-whatsapp"></i> WhatsApp
+      </a>
+      <a id="shareFacebook" href="#" target="_blank" class="share-btn facebook">
+        <i class="fab fa-facebook"></i> Facebook
+      </a>
+      <a id="shareTwitter" href="#" target="_blank" class="share-btn twitter">
+        <i class="fab fa-twitter"></i> Twitter
+      </a>
+      <button class="share-btn native" id="shareNativeBtn" onclick="App.nativeShare()">
+        <i class="fas fa-share"></i> Share
+      </button>
+    </div>
+    <div id="shareCopiedMsg" class="hidden" style="text-align:center;color:var(--green);font-size:13px;margin-top:12px">
+      <i class="fas fa-check"></i> Link copied to clipboard!
+    </div>
+  </div>
+</div>
+
+<!-- DONATION MODAL -->
+<div class="modal-overlay hidden" id="donationOverlay">
+  <div class="modal small-modal" id="donationModal">
+    <button class="modal-close" onclick="document.getElementById('donationOverlay').classList.add('hidden')">
+      <i class="fas fa-times"></i>
+    </button>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:36px;margin-bottom:10px">💝</div>
+      <h3 style="font-size:18px;margin-bottom:4px">Support <span id="donationArtistName"></span></h3>
+      <p style="color:var(--text-muted);font-size:13px">85% goes directly to the artist · 15% platform fee</p>
+    </div>
+    <div id="donationError" class="alert alert-error hidden"></div>
+    <div id="donationSuccess" class="alert alert-success hidden"></div>
+    <form id="donationForm">
+      <input type="hidden" id="donationArtistUuid"/>
+      <div class="form-group">
+        <label>Donation Amount (UGX)</label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
+          <button type="button" class="donation-preset btn btn-outline btn-sm" data-amount="1000">1,000</button>
+          <button type="button" class="donation-preset btn btn-outline btn-sm" data-amount="2000">2,000</button>
+          <button type="button" class="donation-preset btn btn-outline btn-sm" data-amount="5000">5,000</button>
+          <button type="button" class="donation-preset btn btn-outline btn-sm" data-amount="10000">10,000</button>
+        </div>
+        <input type="number" id="donationAmount" placeholder="Or enter custom amount (min 500)" min="500"/>
+      </div>
+      <div class="form-group">
+        <label>Message (optional)</label>
+        <input type="text" id="donationMessage" placeholder="Leave a kind message for the artist..." maxlength="200"/>
+      </div>
+      <div class="form-group">
+        <label>Payment Method</label>
+        <div class="payment-methods">
+          <label class="payment-option">
+            <input type="radio" name="don_method" value="mtn" required/>
+            <div class="payment-card mtn"><img src="/images/mtn-logo.svg" alt="MTN"/><span>MTN MoMo</span></div>
+          </label>
+          <label class="payment-option">
+            <input type="radio" name="don_method" value="airtel"/>
+            <div class="payment-card airtel"><img src="/images/airtel-logo.svg" alt="Airtel"/><span>Airtel Money</span></div>
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Mobile Money Number</label>
+        <input type="tel" id="donationPhone" placeholder="e.g. 0761234567" required/>
+      </div>
+      <div id="donationBreakdown" class="hidden" style="background:var(--bg-primary);border-radius:8px;padding:12px;font-size:13px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="color:var(--text-muted)">Artist receives (85%)</span>
+          <span id="breakdownArtist" style="color:var(--green);font-weight:700"></span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text-muted)">Platform fee (15%)</span>
+          <span id="breakdownFee" style="color:var(--text-muted)"></span>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="donationSubmitBtn">
+        <span>Send Donation</span><i class="fas fa-spinner fa-spin hidden"></i>
+      </button>
+    </form>
+    <div id="donationPending" class="hidden" style="text-align:center;padding:20px 0">
+      <div style="font-size:40px;margin-bottom:12px;animation:pulse 1.5s infinite">📱</div>
+      <h4>Awaiting Payment</h4>
+      <p id="donationPendingMsg" style="color:var(--text-muted);font-size:13px;margin:10px 0"></p>
+      <button class="btn btn-outline btn-sm" id="checkDonationBtn">Check Status</button>
+    </div>
+  </div>
+</div>
+
+<!-- TERMS & CONDITIONS MODAL -->
+<div class="modal-overlay hidden" id="termsOverlay">
+  <div class="modal" id="termsModal" style="max-width:560px">
+    <button class="modal-close" onclick="document.getElementById('termsOverlay').classList.add('hidden')">
+      <i class="fas fa-times"></i>
+    </button>
+    <h3 style="font-size:18px;margin-bottom:4px"><i class="fas fa-file-contract" style="color:var(--accent)"></i> Terms & Conditions</h3>
+    <p style="color:var(--text-muted);font-size:12px;margin-bottom:16px">Etokwa Music Artist Payment Agreement</p>
+    <div class="terms-body" id="termsBody">
+      <p><strong>1. Payment Registration</strong><br/>By registering for payments, you agree to provide accurate banking and mobile money details. Etokwa Music will use these details to disburse your earnings.</p>
+      <p><strong>2. Earnings & Royalties</strong><br/>Artists earn UGX 0.001 per stream. Earnings are calculated monthly and disbursed upon request when the minimum threshold of UGX 10,000 is reached.</p>
+      <p><strong>3. Donations</strong><br/>Artists receive 85% of all donations. Etokwa Music retains 15% as a platform service fee to cover payment processing and operations.</p>
+      <p><strong>4. One-Time Registration Fee</strong><br/>The UGX 15,000 artist payment registration fee is non-refundable and covers account verification and payment infrastructure setup.</p>
+      <p><strong>5. Content Ownership</strong><br/>Artists retain full copyright of their music. By uploading, you grant Etokwa Music a non-exclusive licence to stream and promote your content on the platform.</p>
+      <p><strong>6. Prohibited Content</strong><br/>You must not upload content that infringes third-party rights, contains hate speech, or violates Ugandan law. Violation results in immediate account suspension without refund.</p>
+      <p><strong>7. Account Suspension</strong><br/>Etokwa Music reserves the right to suspend accounts for policy violations. Pending earnings will be forfeited upon suspension for serious violations.</p>
+      <p><strong>8. Updates</strong><br/>These terms may be updated. Continued use of the platform constitutes acceptance of updated terms. Significant changes will be communicated via the notification system.</p>
+      <p style="color:var(--text-muted);font-size:12px;margin-top:16px">Last updated: January 2025. Contact williamekidu@gmail.com for questions.</p>
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;margin-top:16px;cursor:pointer;font-size:14px">
+      <input type="checkbox" id="termsCheckbox" style="width:18px;height:18px;accent-color:var(--accent)"/>
+      I have read and agree to the Terms & Conditions
+    </label>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-outline" onclick="document.getElementById('termsOverlay').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-primary" id="termsAcceptBtn" disabled onclick="App.acceptTermsAndProceed()">Accept & Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATION -->
+<div class="notification hidden" id="notification">
+  <i class="fas fa-check-circle"></i>
+  <span id="notificationMsg"></span>
+</div>
+  <i class="fas fa-check-circle"></i>
+  <span id="notificationMsg"></span>
+</div>
+
+<!-- NOTIFICATIONS BANNER -->
+<div id="notificationsBanner" class="notifications-banner hidden"></div>
+
+<!-- HELP BUTTON (fixed floating) -->
+<button class="help-fab" id="helpFab" title="Help & Support">
+  <i class="fas fa-question"></i>
+</button>
+
+<!-- HELP MODAL -->
+<div class="modal-overlay hidden" id="helpOverlay">
+  <div class="modal small-modal" id="helpModal">
+    <button class="modal-close" onclick="document.getElementById('helpOverlay').classList.add('hidden')">
+      <i class="fas fa-times"></i>
+    </button>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:60px;height:60px;background:var(--accent-glow);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:24px;color:var(--accent)">
+        <i class="fas fa-headset"></i>
+      </div>
+      <h2 style="font-size:20px;margin-bottom:6px">Help & Support</h2>
+      <p style="color:var(--text-muted);font-size:13px">We're here to help. Reach us through any of these channels.</p>
+    </div>
+    <div class="help-options">
+      <a href="mailto:williamekidu@gmail.com" class="help-option">
+        <div class="help-option-icon" style="background:#ef444420;color:#ef4444"><i class="fas fa-envelope"></i></div>
+        <div class="help-option-info">
+          <div class="help-option-label">Email Us</div>
+          <div class="help-option-value">williamekidu@gmail.com</div>
+        </div>
+        <i class="fas fa-chevron-right help-option-arrow"></i>
+      </a>
+      <a href="https://wa.me/256794257174" target="_blank" class="help-option">
+        <div class="help-option-icon" style="background:#25D36620;color:#25D366"><i class="fab fa-whatsapp"></i></div>
+        <div class="help-option-info">
+          <div class="help-option-label">WhatsApp</div>
+          <div class="help-option-value">+256 794 257 174</div>
+        </div>
+        <i class="fas fa-chevron-right help-option-arrow"></i>
+      </a>
+      <a href="tel:+256794257174" class="help-option">
+        <div class="help-option-icon" style="background:#3b82f620;color:#3b82f6"><i class="fas fa-phone"></i></div>
+        <div class="help-option-info">
+          <div class="help-option-label">Call Us</div>
+          <div class="help-option-value">+256 794 257 174</div>
+        </div>
+        <i class="fas fa-chevron-right help-option-arrow"></i>
+      </a>
+      <a href="tel:+256731020495" class="help-option">
+        <div class="help-option-icon" style="background:#3b82f620;color:#3b82f6"><i class="fas fa-phone-alt"></i></div>
+        <div class="help-option-info">
+          <div class="help-option-label">Alternative Line</div>
+          <div class="help-option-value">+256 731 020 495</div>
+        </div>
+        <i class="fas fa-chevron-right help-option-arrow"></i>
+      </a>
+    </div>
+    <div style="margin-top:20px;padding:14px;background:var(--bg-primary);border-radius:var(--radius-sm);text-align:center">
+      <div style="font-size:12px;color:var(--text-muted)">Support hours: Mon–Sat, 8am–8pm EAT</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Response within 24 hours via email</div>
+    </div>
+  </div>
+</div>
+
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- FULL-SCREEN MOBILE PLAYER -->
+<div class="player-fullscreen" id="playerFullscreen">
+  <div class="fs-drag-handle"></div>
+  <div class="fs-header">
+    <div class="fs-header-title">Now Playing</div>
+    <button class="fs-close-btn" id="fsCloseBtn"><i class="fas fa-chevron-down"></i></button>
+  </div>
+  <div class="fs-artwork" id="fsArtwork">
+    <img id="fsCover" src="/images/default-cover.svg" alt="Cover"/>
+  </div>
+  <div class="fs-info">
+    <div class="fs-title-block">
+      <div class="fs-title" id="fsTitle">No song playing</div>
+      <div class="fs-artist" id="fsArtist">—</div>
+    </div>
+    <button class="fs-like-btn" id="fsLikeBtn"><i class="far fa-heart"></i></button>
+  </div>
+  <div class="fs-progress">
+    <div class="fs-progress-bar" id="fsProgressBar">
+      <div class="fs-progress-fill" id="fsProgressFill"></div>
+      <div class="fs-progress-thumb"></div>
+    </div>
+    <div class="fs-times">
+      <span id="fsCurrentTime">0:00</span>
+      <span id="fsTotalTime">0:00</span>
+    </div>
+  </div>
+  <div class="fs-controls">
+    <button class="fs-btn" id="fsShuffleBtn" title="Shuffle"><i class="fas fa-random"></i></button>
+    <button class="fs-btn" id="fsPrevBtn"><i class="fas fa-step-backward"></i></button>
+    <button class="fs-btn fs-play-btn" id="fsPlayPauseBtn"><i class="fas fa-play"></i></button>
+    <button class="fs-btn" id="fsNextBtn"><i class="fas fa-step-forward"></i></button>
+    <button class="fs-btn" id="fsRepeatBtn" title="Repeat"><i class="fas fa-redo"></i></button>
+  </div>
+  <div class="fs-extras">
+    <div class="fs-volume">
+      <button class="fs-extra-btn" id="fsMuteBtn"><i class="fas fa-volume-up"></i></button>
+      <div class="fs-volume-bar" id="fsVolumeBar">
+        <div class="fs-volume-fill" id="fsVolumeFill" style="width:80%"></div>
+      </div>
+    </div>
+    <button class="fs-extra-btn" id="fsQueueBtn" title="Queue"><i class="fas fa-list"></i></button>
+    <button class="download-btn-labeled" id="fsDownloadBtn" style="display:none">
+      <i class="fas fa-download"></i> Download
+    </button>
+  </div>
+</div>
+
+<audio id="audioElement"></audio>
+<script src="/js/api.js"></script>
+<script src="/js/player.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/pages.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#1a1a2e"/>
+  <circle cx="100" cy="100" r="60" fill="#22223a"/>
+  <circle cx="100" cy="100" r="20" fill="#e8820c" opacity="0.6"/>
+  <circle cx="100" cy="100" r="8" fill="#e8820c"/>
+  <!-- Tribal ring patterns -->
+  <circle cx="100" cy="100" r="45" fill="none" stroke="#e8820c" stroke-width="2" stroke-dasharray="6,4" opacity="0.4"/>
+  <circle cx="100" cy="100" r="55" fill="none" stroke="#f5a23d" stroke-width="1" stroke-dasharray="3,8" opacity="0.3"/>
+  <!-- Music note -->
+  <text x="100" y="108" text-anchor="middle" font-size="28" fill="#e8820c" opacity="0.5" font-family="sans-serif">♫</text>
+</svg>
