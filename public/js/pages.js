@@ -153,7 +153,7 @@ const Pages = (() => {
         <div class="tribal-border"></div>
         <div class="hero">
           <div class="hero-content">
-            <div class="hero-badge"><img src="/images/kumam-drum-logo.png" alt="" style="height:18px;object-fit:contain;border-radius:3px"/> ETOKWA MUSIC</div>
+            <div class="hero-badge"><i class="fas fa-drum"></i> KUMAM MUSIC</div>
             <h1>${user ? `Hey, ${user.name.split(' ')[0]}! 👋<br/>` : ''}<span class="highlight">Feel the Rhythm,</span><br/>Live the Culture</h1>
             <p>Stream authentic Kumam music — Gospel, Afrobeats, Hip-Hop, Dancehall, RnB and more. Support your favourite local artists.</p>
             <div class="hero-cta">
