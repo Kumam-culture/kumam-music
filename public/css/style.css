@@ -1950,7 +1950,6 @@ body:not(.dark-mode) .tribal-border {
   content: '🌙';
 }
 
-<<<<<<< HEAD
 
 /* ============================================================
    GENRE GROUPS — Regional/Style Browse Page
@@ -2043,5 +2042,3 @@ body:not(.dark-mode) .tribal-border {
 /* Light mode overrides */
 body:not(.dark-mode) .genre-tag { background: transparent; }
 body:not(.dark-mode) .genre-group-block { border-color: rgba(0,0,0,0.08); }
-=======
->>>>>>> 5a43be6d823a15bf14b16abc236635e8ae687e24
