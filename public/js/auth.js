@@ -212,7 +212,7 @@ const Auth = (() => {
       localStorage.setItem('kumam_token', res.token);
       hideOverlay();
       App.setUser(res.user);
-      App.showNotification(`Welcome to Kumam Music, ${res.user.name.split(' ')[0]}! 🎵`);
+      App.showNotification(`Welcome to Etokwa Music, ${res.user.name.split(' ')[0]}! 🎵`);
 
       if (res.requiresSubscription) {
         setTimeout(() => showSubscription(

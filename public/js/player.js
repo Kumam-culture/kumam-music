@@ -76,7 +76,7 @@ const Player = (() => {
     cover.src       = art;
     titleEl.textContent  = song.title;
     artistEl.textContent = name;
-    document.title  = `${song.title} — Kumam Music`;
+    document.title  = `${song.title} — Etokwa Music`;
     _syncPlayBtn(playPauseBtn, isPlaying);
     likeBtn.querySelector('i').className = song.liked ? 'fas fa-heart' : 'far fa-heart';
     likeBtn.style.color = song.liked ? 'var(--accent)' : '';
@@ -249,7 +249,7 @@ const Player = (() => {
       }
       const disposition = res.headers.get('Content-Disposition') || '';
       const match = disposition.match(/filename="?([^"]+)"?/);
-      const filename = match ? match[1] : `Kumam_Music - ${song.title}.mp3`;
+      const filename = match ? match[1] : `Etokwa_Music - ${song.title}.mp3`;
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

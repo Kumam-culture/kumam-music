@@ -1,4 +1,4 @@
--- Kumam Music Streaming Platform - Database Schema
+-- Etokwa Music Streaming Platform - Database Schema
 CREATE DATABASE IF NOT EXISTS kumam_music CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE kumam_music;
 
@@ -211,7 +211,7 @@ INSERT IGNORE INTO users (uuid, name, email, password, role, is_active, is_verif
 VALUES (
   'admin-kumam-uuid-001',
   'Kumam Admin',
-  'admin@kumammusic.ug',
+  'admin@etokwamusic.ug',
   '$2a$12$LqF5u8F.8FHbV2yqQs6qFO.Z0HJ.LV6VB/gPGZJLdALyZ3S.XLSaK',
   'admin',
   TRUE,
@@ -293,3 +293,102 @@ ALTER TABLE subscriptions MODIFY COLUMN plan ENUM(
   'artist_payment_registration','artist_annual'
 ) NOT NULL;
 
+
+-- ── Genre Groups (regional + style categories) ──────────────────
+CREATE TABLE IF NOT EXISTS genre_groups (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(100) NOT NULL,
+  slug VARCHAR(100) UNIQUE NOT NULL,
+  description VARCHAR(255) DEFAULT NULL,
+  icon VARCHAR(50) DEFAULT NULL,
+  color VARCHAR(20) DEFAULT NULL,
+  sort_order INT DEFAULT 0
+);
+
+-- Add group_id to genres table
+ALTER TABLE genres ADD COLUMN IF NOT EXISTS group_id INT DEFAULT NULL;
+ALTER TABLE genres ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
+ALTER TABLE genres ADD FOREIGN KEY IF NOT EXISTS (group_id) REFERENCES genre_groups(id) ON DELETE SET NULL;
+
+-- ── Genre Groups ──────────────────────────────────────────────────
+INSERT IGNORE INTO genre_groups (name, slug, description, icon, color, sort_order) VALUES
+  ('Northern Uganda',  'northern',       'Acholi, Lango, Kumam, Alur & more',        'map-marker-alt', '#F59E0B', 1),
+  ('Eastern Uganda',   'eastern',        'Kumam, Ateso, Basoga, Bagisu & more',       'map-marker-alt', '#10B981', 2),
+  ('West Nile',        'west-nile',      'Lugbara, Madi, Jopadhola & more',           'map-marker-alt', '#8B5CF6', 3),
+  ('Central Uganda',   'central',        'Baganda, Banyankole, Bafumbira & more',     'map-marker-alt', '#EC4899', 4),
+  ('Western Uganda',   'western',        'Banyankole, Batooro, Bakiga & more',        'map-marker-alt', '#3B82F6', 5),
+  ('Church & Gospel',  'church-gospel',  'Praise, Worship & Inspirational',           'church',         '#A78BFA', 6),
+  ('Traditional',      'traditional',    'Uganda Traditional & Cultural Songs',       'drum',           '#D97706', 7),
+  ('Afro & Urban',     'afro-urban',     'Afrobeats, Afropop, Bongo, Lingala & more', 'music',          '#EF4444', 8),
+  ('International',    'international',  'Amapiano, RnB, Hip-Hop, Dancehall & more', 'globe',          '#6366F1', 9);
+
+-- ── Clear old genres and replace with full set ───────────────────
+DELETE FROM genres;
+
+-- Northern Uganda
+INSERT IGNORE INTO genres (name, slug, icon, color, group_id, sort_order) VALUES
+  ('Acholi Music',   'acholi',   'drum', '#F59E0B', (SELECT id FROM genre_groups WHERE slug='northern'), 1),
+  ('Lango Music',    'lango',    'drum', '#FBBF24', (SELECT id FROM genre_groups WHERE slug='northern'), 2),
+  ('Alur Music',     'alur',     'drum', '#FCD34D', (SELECT id FROM genre_groups WHERE slug='northern'), 3),
+  ('Kakwa Music',    'kakwa',    'drum', '#FDE68A', (SELECT id FROM genre_groups WHERE slug='northern'), 4);
+
+-- Eastern Uganda
+INSERT IGNORE INTO genres (name, slug, icon, color, group_id, sort_order) VALUES
+  ('Etokwa Music',    'kumam',    'drum', '#10B981', (SELECT id FROM genre_groups WHERE slug='eastern'), 1),
+  ('Ateso Music',    'ateso',    'drum', '#34D399', (SELECT id FROM genre_groups WHERE slug='eastern'), 2),
+  ('Basoga Music',   'basoga',   'drum', '#6EE7B7', (SELECT id FROM genre_groups WHERE slug='eastern'), 3),
+  ('Bagisu Music',   'bagisu',   'drum', '#A7F3D0', (SELECT id FROM genre_groups WHERE slug='eastern'), 4),
+  ('Banyole Music',  'banyole',  'drum', '#D1FAE5', (SELECT id FROM genre_groups WHERE slug='eastern'), 5);
+
+-- West Nile
+INSERT IGNORE INTO genres (name, slug, icon, color, group_id, sort_order) VALUES
+  ('Lugbara Music',   'lugbara',   'drum', '#8B5CF6', (SELECT id FROM genre_groups WHERE slug='west-nile'), 1),
+  ('Madi Music',      'madi',      'drum', '#A78BFA', (SELECT id FROM genre_groups WHERE slug='west-nile'), 2),
+  ('Jopadhola Music', 'jopadhola', 'drum', '#C4B5FD', (SELECT id FROM genre_groups WHERE slug='west-nile'), 3),
+  ('Aringa Music',    'aringa',    'drum', '#DDD6FE', (SELECT id FROM genre_groups WHERE slug='west-nile'), 4);
+
+-- Central Uganda
+INSERT IGNORE INTO genres (name, slug, icon, color, group_id, sort_order) VALUES
+  ('Luganda Music',  'luganda',  'music', '#EC4899', (SELECT id FROM genre_groups WHERE slug='central'), 1),
+  ('Kiganda Music',  'kiganda',  'drum',  '#F472B6', (SELECT id FROM genre_groups WHERE slug='central'), 2),
+  ('Banyankole',     'banyankole','drum', '#FB7185', (SELECT id FROM genre_groups WHERE slug='central'), 3);
+
+-- Western Uganda
+INSERT IGNORE INTO genres (name, slug, icon, color, group_id, sort_order) VALUES
+  ('Runyankore Music','runyankore','drum', '#3B82F6', (SELECT id FROM genre_groups WHERE slug='western'), 1),
+  ('Rutooro Music',   'rutooro',   'drum', '#60A5FA', (SELECT id FROM genre_groups WHERE slug='western'), 2),
+  ('Rukiga Music',    'rukiga',    'drum', '#93C5FD', (SELECT id FROM genre_groups WHERE slug='western'), 3),
+  ('Bafumbira Music', 'bafumbira', 'drum', '#BFDBFE', (SELECT id FROM genre_groups WHERE slug='western'), 4);
+
+-- Church & Gospel
+INSERT IGNORE INTO genres (name, slug, icon, color, group_id, sort_order) VALUES
+  ('Gospel',          'gospel',         'church',     '#A78BFA', (SELECT id FROM genre_groups WHERE slug='church-gospel'), 1),
+  ('Praise & Worship','praise-worship', 'hands',      '#C4B5FD', (SELECT id FROM genre_groups WHERE slug='church-gospel'), 2),
+  ('Church Hymns',    'hymns',          'music',      '#DDD6FE', (SELECT id FROM genre_groups WHERE slug='church-gospel'), 3),
+  ('Contemporary Christian','ccm',      'cross',      '#EDE9FE', (SELECT id FROM genre_groups WHERE slug='church-gospel'), 4);
+
+-- Uganda Traditional
+INSERT IGNORE INTO genres (name, slug, icon, color, group_id, sort_order) VALUES
+  ('Uganda Traditional','ug-traditional','drum',       '#D97706', (SELECT id FROM genre_groups WHERE slug='traditional'), 1),
+  ('Cultural Dances',   'cultural-dance','person-dancing','B45309',(SELECT id FROM genre_groups WHERE slug='traditional'), 2),
+  ('Folklore Music',    'folklore',      'leaf',       '#92400E', (SELECT id FROM genre_groups WHERE slug='traditional'), 3),
+  ('Ndere Music',       'ndere',         'drum',       '#78350F', (SELECT id FROM genre_groups WHERE slug='traditional'), 4);
+
+-- Afro & Urban
+INSERT IGNORE INTO genres (name, slug, icon, color, group_id, sort_order) VALUES
+  ('Afrobeats',     'afrobeats',  'drum',       '#EF4444', (SELECT id FROM genre_groups WHERE slug='afro-urban'), 1),
+  ('Afropop',       'afropop',    'music',      '#F87171', (SELECT id FROM genre_groups WHERE slug='afro-urban'), 2),
+  ('Bongo Flava',   'bongo',      'music',      '#FCA5A5', (SELECT id FROM genre_groups WHERE slug='afro-urban'), 3),
+  ('Lingala',       'lingala',    'music',      '#FECACA', (SELECT id FROM genre_groups WHERE slug='afro-urban'), 4),
+  ('Uganda Dancehall','ug-dancehall','record-vinyl','#FEE2E2',(SELECT id FROM genre_groups WHERE slug='afro-urban'), 5),
+  ('Gengetone',     'gengetone',  'microphone', '#FECDD3', (SELECT id FROM genre_groups WHERE slug='afro-urban'), 6);
+
+-- International
+INSERT IGNORE INTO genres (name, slug, icon, color, group_id, sort_order) VALUES
+  ('Amapiano',      'amapiano',   'music',      '#6366F1', (SELECT id FROM genre_groups WHERE slug='international'), 1),
+  ('Hip-Hop',       'hiphop',     'microphone', '#818CF8', (SELECT id FROM genre_groups WHERE slug='international'), 2),
+  ('RnB',           'rnb',        'heart',      '#A5B4FC', (SELECT id FROM genre_groups WHERE slug='international'), 3),
+  ('Dancehall',     'dancehall',  'record-vinyl','#C7D2FE',(SELECT id FROM genre_groups WHERE slug='international'), 4),
+  ('Reggae',        'reggae',     'music',      '#DDD6FE', (SELECT id FROM genre_groups WHERE slug='international'), 5),
+  ('Pop',           'pop',        'star',       '#E0E7FF', (SELECT id FROM genre_groups WHERE slug='international'), 6),
+  ('Jazz & Soul',   'jazz-soul',  'music',      '#EEF2FF', (SELECT id FROM genre_groups WHERE slug='international'), 7);

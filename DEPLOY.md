@@ -1,4 +1,4 @@
-# 🚀 Deploying Kumam Music to Railway + Cloudinary
+# 🚀 Deploying Etokwa Music to Railway + Cloudinary
 
 ## Overview
 - **Hosting:** Railway.app (Node.js server + MySQL database)
@@ -36,7 +36,7 @@ The app creates these folders automatically:
 cd kumam-music
 git init
 git add .
-git commit -m "Initial Kumam Music deployment"
+git commit -m "Initial Etokwa Music deployment"
 git branch -M main
 git remote add origin https://github.com/YOUR_USERNAME/kumam-music.git
 git push -u origin main
@@ -74,7 +74,7 @@ JWT_SECRET=your-very-long-random-secret-here
 SESSION_SECRET=another-very-long-random-secret-here
 
 # Admin login
-ADMIN_EMAIL=admin@kumammusic.ug
+ADMIN_EMAIL=admin@etokwamusic.ug
 ADMIN_PASSWORD=Admin@Kumam2024
 
 # Cloudinary (from Step 1)
@@ -132,8 +132,8 @@ railway run mysql -u $MYSQLUSER -p$MYSQLPASSWORD $MYSQLDATABASE < config/schema.
 ## Step 6 — Verify everything works
 
 Open your URL and check:
-- [ ] Home page loads with Kumam Music branding
-- [ ] Sign in with `admin@kumammusic.ug` / `Admin@Kumam2024`
+- [ ] Home page loads with Etokwa Music branding
+- [ ] Sign in with `admin@etokwamusic.ug` / `Admin@Kumam2024`
 - [ ] Admin panel opens (Admin → Dashboard)
 - [ ] Upload a test song (verify it goes to Cloudinary, not local disk)
 - [ ] Song plays back from Cloudinary URL

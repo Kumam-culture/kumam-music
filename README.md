@@ -1,4 +1,4 @@
-# 🥁 Kumam Music — Streaming Platform
+# 🥁 Etokwa Music — Streaming Platform
 
 A full-stack music streaming platform inspired by Kumam culture, built with Node.js, Express, MySQL, and vanilla JavaScript.
 
@@ -57,7 +57,7 @@ DB_NAME=kumam_music
 JWT_SECRET=change-this-to-something-long-and-random
 SESSION_SECRET=another-random-secret
 
-ADMIN_EMAIL=admin@kumammusic.ug
+ADMIN_EMAIL=admin@etokwamusic.ug
 ADMIN_PASSWORD=Admin@Kumam2024
 ```
 
@@ -81,7 +81,7 @@ Visit: **http://localhost:3000**
 
 | Role  | Email                   | Password        |
 |-------|-------------------------|-----------------|
-| Admin | admin@kumammusic.ug     | Admin@Kumam2024 |
+| Admin | admin@etokwamusic.ug     | Admin@Kumam2024 |
 
 > The admin account is automatically detected — just sign in with the admin credentials on the regular sign-in form.
 

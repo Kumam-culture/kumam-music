@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Kumam Music — Streaming Platform</title>
+  <title>Etokwa Music — Streaming Platform</title>
   <link rel="stylesheet" href="/css/style.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -13,9 +13,11 @@
 <!-- SIDEBAR -->
 <div id="sidebar" class="sidebar">
   <div class="sidebar-logo">
-    <div class="logo-icon"><i class="fas fa-drum"></i></div>
+    <div class="logo-icon">
+      <img src="/images/kumam-drum-logo.png" alt="Kumam Drum" style="width:36px;height:36px;object-fit:contain;border-radius:8px;"/>
+    </div>
     <div class="logo-text">
-      <span class="logo-main">KUMAM</span>
+      <span class="logo-main">ETOKWA</span>
       <span class="logo-sub">MUSIC</span>
     </div>
   </div>
@@ -48,7 +50,10 @@
     <!-- Row 1: hamburger + auth/user (always visible) -->
     <div class="topbar-row1">
       <button class="hamburger" id="hamburgerBtn"><i class="fas fa-bars"></i></button>
-      <div class="topbar-brand">KUMAM <span>MUSIC</span></div>
+      <div class="topbar-brand">
+        <img src="/images/kumam-drum-logo.png" alt="" style="height:28px;object-fit:contain;vertical-align:middle;margin-right:6px;border-radius:4px;"/>
+        ETOKWA <span>MUSIC</span>
+      </div>
       <div class="topbar-actions">
         <div id="guestActions" class="auth-buttons">
           <button class="btn btn-outline btn-sm" id="signInBtn">Sign In</button>
@@ -142,7 +147,10 @@
   <!-- Sign In Modal -->
   <div class="modal" id="signInModal">
     <button class="modal-close" data-close="signInModal"><i class="fas fa-times"></i></button>
-    <div class="modal-logo"><i class="fas fa-drum"></i> KUMAM MUSIC</div>
+    <div class="modal-logo">
+      <img src="/images/kumam-drum-logo.png" alt="Etokwa Music" style="height:48px;object-fit:contain;margin:0 auto 4px;display:block;"/>
+      ETOKWA MUSIC
+    </div>
     <h2>Sign In</h2>
     <div id="signInError" class="alert alert-error hidden"></div>
     <form id="signInForm">
@@ -167,7 +175,10 @@
   <!-- Sign Up Modal -->
   <div class="modal hidden" id="signUpModal">
     <button class="modal-close" data-close="signUpModal"><i class="fas fa-times"></i></button>
-    <div class="modal-logo"><i class="fas fa-drum"></i> KUMAM MUSIC</div>
+    <div class="modal-logo">
+      <img src="/images/kumam-drum-logo.png" alt="Etokwa Music" style="height:48px;object-fit:contain;margin:0 auto 4px;display:block;"/>
+      ETOKWA MUSIC
+    </div>
     <h2>Create Account</h2>
     <div class="account-type-tabs">
       <button class="tab-btn active" data-type="listener"><i class="fas fa-headphones"></i> Listener</button>
@@ -392,15 +403,15 @@
       <i class="fas fa-times"></i>
     </button>
     <h3 style="font-size:18px;margin-bottom:4px"><i class="fas fa-file-contract" style="color:var(--accent)"></i> Terms & Conditions</h3>
-    <p style="color:var(--text-muted);font-size:12px;margin-bottom:16px">Kumam Music Artist Payment Agreement</p>
+    <p style="color:var(--text-muted);font-size:12px;margin-bottom:16px">Etokwa Music Artist Payment Agreement</p>
     <div class="terms-body" id="termsBody">
-      <p><strong>1. Payment Registration</strong><br/>By registering for payments, you agree to provide accurate banking and mobile money details. Kumam Music will use these details to disburse your earnings.</p>
+      <p><strong>1. Payment Registration</strong><br/>By registering for payments, you agree to provide accurate banking and mobile money details. Etokwa Music will use these details to disburse your earnings.</p>
       <p><strong>2. Earnings & Royalties</strong><br/>Artists earn UGX 0.001 per stream. Earnings are calculated monthly and disbursed upon request when the minimum threshold of UGX 10,000 is reached.</p>
-      <p><strong>3. Donations</strong><br/>Artists receive 85% of all donations. Kumam Music retains 15% as a platform service fee to cover payment processing and operations.</p>
+      <p><strong>3. Donations</strong><br/>Artists receive 85% of all donations. Etokwa Music retains 15% as a platform service fee to cover payment processing and operations.</p>
       <p><strong>4. One-Time Registration Fee</strong><br/>The UGX 15,000 artist payment registration fee is non-refundable and covers account verification and payment infrastructure setup.</p>
-      <p><strong>5. Content Ownership</strong><br/>Artists retain full copyright of their music. By uploading, you grant Kumam Music a non-exclusive licence to stream and promote your content on the platform.</p>
+      <p><strong>5. Content Ownership</strong><br/>Artists retain full copyright of their music. By uploading, you grant Etokwa Music a non-exclusive licence to stream and promote your content on the platform.</p>
       <p><strong>6. Prohibited Content</strong><br/>You must not upload content that infringes third-party rights, contains hate speech, or violates Ugandan law. Violation results in immediate account suspension without refund.</p>
-      <p><strong>7. Account Suspension</strong><br/>Kumam Music reserves the right to suspend accounts for policy violations. Pending earnings will be forfeited upon suspension for serious violations.</p>
+      <p><strong>7. Account Suspension</strong><br/>Etokwa Music reserves the right to suspend accounts for policy violations. Pending earnings will be forfeited upon suspension for serious violations.</p>
       <p><strong>8. Updates</strong><br/>These terms may be updated. Continued use of the platform constitutes acceptance of updated terms. Significant changes will be communicated via the notification system.</p>
       <p style="color:var(--text-muted);font-size:12px;margin-top:16px">Last updated: January 2025. Contact williamekidu@gmail.com for questions.</p>
     </div>

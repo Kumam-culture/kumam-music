@@ -112,6 +112,9 @@ const API = (() => {
     createShareLink: (data) => request('POST', '/share', data),
     resolveShare:    (uuid) => request('GET',  `/share/${uuid}`),
 
+    // Genre groups
+    getGenreGroups: () => request('GET', '/genre-groups'),
+
     // Search
     search: (q, type='all') => request('GET', `/search?q=${encodeURIComponent(q)}&type=${type}`),
 

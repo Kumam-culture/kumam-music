@@ -31,7 +31,7 @@ const Pages = (() => {
             <button class="like-btn-song ${song.liked?'liked':''}" data-uuid="${song.uuid}" onclick="event.stopPropagation();App.toggleLike(this,'${song.uuid}')" title="Like">
               <i class="${song.liked?'fas':'far'} fa-heart"></i>
             </button>
-            <div class="song-actions-menu" data-song='${JSON.stringify({uuid:song.uuid,title:song.title,is_downloadable:song.is_downloadable}).replace(/'/g,"&#39;")}' onclick="event.stopPropagation()">
+            <div class="song-actions-menu" data-song="${encodeURIComponent(JSON.stringify({uuid:song.uuid,title:song.title,is_downloadable:!!song.is_downloadable,liked:!!song.liked}))}" onclick="event.stopPropagation()">
               <button class="song-actions-trigger" title="More options"><i class="fas fa-ellipsis-v"></i></button>
             </div>
           </div>
@@ -56,7 +56,7 @@ const Pages = (() => {
           <button class="like-btn-song ${song.liked?'liked':''}" data-uuid="${song.uuid}" onclick="event.stopPropagation();App.toggleLike(this,'${song.uuid}')" title="Like">
             <i class="${song.liked?'fas':'far'} fa-heart"></i>
           </button>
-          <div class="song-actions-menu" data-song='${JSON.stringify({uuid:song.uuid,title:song.title,is_downloadable:!!song.is_downloadable}).replace(/'/g,"&#39;")}' onclick="event.stopPropagation()">
+          <div class="song-actions-menu" data-song="${encodeURIComponent(JSON.stringify({uuid:song.uuid,title:song.title,is_downloadable:!!song.is_downloadable,liked:!!song.liked}))}" onclick="event.stopPropagation()">
             <button class="song-actions-trigger" title="More options"><i class="fas fa-ellipsis-v"></i></button>
           </div>
         </div>
@@ -153,7 +153,7 @@ const Pages = (() => {
         <div class="tribal-border"></div>
         <div class="hero">
           <div class="hero-content">
-            <div class="hero-badge"><i class="fas fa-drum"></i> KUMAM MUSIC</div>
+            <div class="hero-badge"><img src="/images/kumam-drum-logo.png" alt="" style="height:18px;object-fit:contain;border-radius:3px"/> ETOKWA MUSIC</div>
             <h1>${user ? `Hey, ${user.name.split(' ')[0]}! 👋<br/>` : ''}<span class="highlight">Feel the Rhythm,</span><br/>Live the Culture</h1>
             <p>Stream authentic Kumam music — Gospel, Afrobeats, Hip-Hop, Dancehall, RnB and more. Support your favourite local artists.</p>
             <div class="hero-cta">
@@ -236,21 +236,35 @@ const Pages = (() => {
   // DISCOVER PAGE
   // ════════════════════════════════════════════════════════
   const renderDiscover = async (container) => {
-    const genres = [
-      { name: 'All', slug: '' }, { name: 'Gospel', slug: 'gospel' }, { name: 'Afrobeats', slug: 'afrobeats' },
-      { name: 'Hip-Hop', slug: 'hiphop' }, { name: 'Dancehall', slug: 'dancehall' }, { name: 'RnB', slug: 'rnb' }
-    ];
+    container.innerHTML = loading();
+    try {
+      const res = await API.getGenreGroups();
+      const { groups = [], genres = [] } = res;
 
-    container.innerHTML = `
-      <div class="section">
-        <div class="section-header"><h2 class="section-title"><i class="fas fa-compass"></i> Discover Music</h2></div>
-        <div class="genre-pills">
-          ${genres.map((g, i) => `<div class="genre-pill ${i===0?'active':''}" data-genre="${g.slug}" onclick="Pages.filterDiscover(this,'${g.slug}')">${g.name}</div>`).join('')}
-        </div>
-        <div id="discoverSongsGrid">${loading()}</div>
-      </div>`;
+      // Build flat list with group separators
+      let pillsHtml = `<div class="genre-pill ${''}" data-genre="" onclick="Pages.filterDiscover(this,'')">All</div>`;
+      groups.forEach(grp => {
+        const grpGenres = genres.filter(g => g.group_id === grp.id);
+        if (!grpGenres.length) return;
+        pillsHtml += `<div class="genre-group-pill-label" style="color:${grp.color}">${grp.name}</div>`;
+        grpGenres.forEach(g => {
+          pillsHtml += `<div class="genre-pill" data-genre="${g.slug}" onclick="Pages.filterDiscover(this,'${g.slug}')" style="--pill-active-color:${g.color || grp.color}">${g.name}</div>`;
+        });
+      });
 
-    await loadDiscoverSongs('');
+      container.innerHTML = `
+        <div class="section">
+          <div class="section-header"><h2 class="section-title"><i class="fas fa-compass"></i> Discover Music</h2></div>
+          <div class="genre-pills discover-pills">${pillsHtml}</div>
+          <div id="discoverSongsGrid">${loading()}</div>
+        </div>`;
+
+      // Activate "All" pill
+      container.querySelector('.genre-pill').classList.add('active');
+      await loadDiscoverSongs('');
+    } catch (e) {
+      container.innerHTML = `<p style="color:var(--red);padding:32px">${e.message}</p>`;
+    }
   };
 
   const loadDiscoverSongs = async (genre) => {
@@ -275,29 +289,49 @@ const Pages = (() => {
   // GENRES PAGE
   // ════════════════════════════════════════════════════════
   const renderGenres = async (container) => {
-    const genres = [
-      { name: 'Gospel', slug: 'gospel', icon: 'cross', color: '#8B5CF6', desc: 'Praise, worship & inspirational' },
-      { name: 'Afrobeats', slug: 'afrobeats', icon: 'drum', color: '#F59E0B', desc: 'Afro rhythms & vibes' },
-      { name: 'Hip-Hop', slug: 'hiphop', icon: 'microphone', color: '#EF4444', desc: 'Flow, bars & beats' },
-      { name: 'Dancehall', slug: 'dancehall', icon: 'record-vinyl', color: '#10B981', desc: 'Island & dance energy' },
-      { name: 'RnB', slug: 'rnb', icon: 'heart', color: '#EC4899', desc: 'Rhythm & soul' },
-    ];
-    container.innerHTML = `
-      <div class="section">
-        <div class="section-header"><h2 class="section-title"><i class="fas fa-music"></i> Genres</h2></div>
-        <div class="albums-grid">
-          ${genres.map(g => `
-            <div class="album-card" onclick="App.navigate('genre:${g.slug}')" style="cursor:pointer">
-              <div class="album-card-img" style="background:${g.color}20;display:flex;align-items:center;justify-content:center;font-size:56px;color:${g.color}">
-                <i class="fas fa-${g.icon}"></i>
-              </div>
-              <div class="album-card-info">
-                <div class="album-card-title">${g.name}</div>
-                <div class="album-card-artist" style="color:var(--text-muted)">${g.desc}</div>
-              </div>
-            </div>`).join('')}
-        </div>
-      </div>`;
+    container.innerHTML = loading();
+    try {
+      const res = await API.getGenreGroups();
+      const { groups = [], genres = [] } = res;
+
+      // Group genres by group_id
+      const byGroup = {};
+      genres.forEach(g => {
+        if (!byGroup[g.group_id]) byGroup[g.group_id] = [];
+        byGroup[g.group_id].push(g);
+      });
+
+      container.innerHTML = `
+        <div class="section">
+          <div class="section-header">
+            <h2 class="section-title"><i class="fas fa-map-marked-alt"></i> Browse by Region & Style</h2>
+          </div>
+          ${groups.map(grp => {
+            const grpGenres = byGroup[grp.id] || [];
+            return `
+              <div class="genre-group-block">
+                <div class="genre-group-header">
+                  <div class="genre-group-icon" style="background:${grp.color}22;color:${grp.color}">
+                    <i class="fas fa-${grp.icon || 'music'}"></i>
+                  </div>
+                  <div>
+                    <div class="genre-group-name">${grp.name}</div>
+                    <div class="genre-group-desc">${grp.description || ''}</div>
+                  </div>
+                </div>
+                <div class="genre-tags-wrap">
+                  ${grpGenres.map(g => `
+                    <button class="genre-tag" style="--tag-color:${g.color || grp.color}"
+                      onclick="App.navigate('genre:${g.slug}')">
+                      ${g.name}
+                    </button>`).join('')}
+                </div>
+              </div>`;
+          }).join('')}
+        </div>`;
+    } catch (e) {
+      container.innerHTML = `<p style="color:var(--red);padding:32px">${e.message}</p>`;
+    }
   };
 
   // ════════════════════════════════════════════════════════
@@ -306,16 +340,25 @@ const Pages = (() => {
   const renderGenreDetail = async (container, slug) => {
     container.innerHTML = loading();
     try {
-      const res = await API.getSongs({ genre: slug, limit: 50, sort: 'trending' });
-      const genreName = slug.charAt(0).toUpperCase() + slug.slice(1);
+      // Get genre info
+      const grpRes = await API.getGenreGroups();
+      const genre = (grpRes.genres || []).find(g => g.slug === slug);
+      const group = genre ? (grpRes.groups || []).find(g => g.id === genre.group_id) : null;
+
+      const res = await API.getSongs({ genre: slug, limit: 100, sort: 'trending' });
+      const color = genre?.color || group?.color || 'var(--accent)';
+
       container.innerHTML = `
-        <div class="section">
-          <div class="section-header">
-            <h2 class="section-title"><i class="fas fa-music"></i> ${genreName}</h2>
-            <span class="text-muted text-sm">${res.songs?.length || 0} songs</span>
+        <div style="background:${color}15;padding:24px 32px;border-bottom:1px solid var(--border)">
+          <div style="font-size:12px;color:${color};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">
+            ${group ? `<i class="fas fa-map-marker-alt"></i> ${group.name}` : ''}
           </div>
+          <h2 style="font-size:26px;font-weight:800;margin-bottom:4px">${genre?.name || slug}</h2>
+          <span style="color:var(--text-muted);font-size:13px">${res.songs?.length || 0} songs</span>
+        </div>
+        <div class="section">
           <div class="songs-list">
-            ${(res.songs||[]).map((s,i) => songRow(s, i)).join('') || empty('music','No songs in this genre yet','')}
+            ${(res.songs||[]).map((s,i) => songRow(s, i)).join('') || empty('music','No songs in this genre yet','Be the first to upload!')}
           </div>
         </div>`;
     } catch (e) {
@@ -770,21 +813,45 @@ const Pages = (() => {
   // SETTINGS PAGE
   // ════════════════════════════════════════════════════════
   const renderSettings = (container) => {
+    const isDark = document.body.classList.contains('dark-mode');
     container.innerHTML = `
       <div class="section">
         <div class="section-header"><h2 class="section-title"><i class="fas fa-cog"></i> Settings</h2></div>
         <div style="max-width:500px">
-          <div class="stat-card" style="margin-bottom:16px">
-            <h3 style="margin-bottom:16px;font-size:16px">Account Settings</h3>
-            <button class="btn btn-outline w-full" style="margin-bottom:10px" onclick="App.navigate('profile')"><i class="fas fa-user"></i> Edit Profile</button>
-            <button class="btn btn-outline w-full" style="margin-bottom:10px" onclick="Auth.showSubscription()"><i class="fas fa-crown"></i> Manage Subscription</button>
+
+          <h3 style="font-size:14px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Appearance</h3>
+          <div class="theme-toggle-wrap">
+            <div class="theme-toggle-info">
+              <div class="label">Dark Mode</div>
+              <div class="desc">Switch between light and dark theme</div>
+            </div>
+            <label class="theme-toggle-switch">
+              <input type="checkbox" id="darkModeToggle" ${isDark ? 'checked' : ''}/>
+              <span class="theme-toggle-slider"></span>
+            </label>
           </div>
+
+          <h3 style="font-size:14px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px">Account</h3>
+          <div class="stat-card" style="margin-bottom:12px">
+            <button class="btn btn-outline w-full" style="margin-bottom:10px" onclick="App.navigate('profile')"><i class="fas fa-user"></i> Edit Profile</button>
+            <button class="btn btn-outline w-full" onclick="Auth.showSubscription()"><i class="fas fa-crown"></i> Manage Subscription</button>
+          </div>
+
+          <h3 style="font-size:14px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px">Support</h3>
+          <div class="stat-card" style="margin-bottom:12px">
+            <button class="btn btn-outline w-full" onclick="document.getElementById('helpOverlay').classList.remove('hidden')"><i class="fas fa-headset"></i> Help & Support</button>
+          </div>
+
+          <h3 style="font-size:14px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px">Danger Zone</h3>
           <div class="stat-card">
-            <h3 style="margin-bottom:16px;font-size:16px">Privacy & Security</h3>
             <button class="btn btn-danger w-full" onclick="App.deleteAccount()"><i class="fas fa-trash"></i> Delete Account</button>
           </div>
         </div>
       </div>`;
+
+    document.getElementById('darkModeToggle')?.addEventListener('change', (e) => {
+      App.setTheme(e.target.checked ? 'dark' : 'light');
+    });
   };
 
   // ════════════════════════════════════════════════════════
@@ -851,7 +918,19 @@ const Pages = (() => {
   // ════════════════════════════════════════════════════════
   const renderUpload = async (container) => {
     let albums = [];
+    let genreGroups = [], allGenres = [];
     try { const r = await API.getMyAlbums(); albums = r.albums || []; } catch (e) {}
+    try { const r = await API.getGenreGroups(); genreGroups = r.groups || []; allGenres = r.genres || []; } catch (e) {}
+
+    // Build grouped <optgroup> select
+    const genreSelect = (name) => {
+      const groups = genreGroups.map(grp => {
+        const grpGenres = allGenres.filter(g => g.group_id === grp.id);
+        if (!grpGenres.length) return '';
+        return `<optgroup label="${grp.name}">${grpGenres.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}</optgroup>`;
+      }).join('');
+      return `<select name="${name}"><option value="">Select genre</option>${groups}</select>`;
+    };
 
     container.innerHTML = `
       <div class="section">
@@ -872,14 +951,7 @@ const Pages = (() => {
             </div>
             <div class="form-group">
               <label>Genre</label>
-              <select name="genre_id">
-                <option value="">Select genre</option>
-                <option value="1">Gospel</option>
-                <option value="2">Afrobeats</option>
-                <option value="3">Hip-Hop</option>
-                <option value="4">Dancehall</option>
-                <option value="5">RnB</option>
-              </select>
+              ${genreSelect('genre_id')}
             </div>
             <div class="form-group">
               <label>Album (optional)</label>
@@ -922,13 +994,7 @@ const Pages = (() => {
             <form id="createAlbumForm" enctype="multipart/form-data">
               <div class="form-group"><label>Album Title *</label><input type="text" name="title" placeholder="Album title" required/></div>
               <div class="form-group"><label>Description</label><textarea name="description" rows="2" placeholder="Album description..."></textarea></div>
-              <div class="form-group"><label>Genre</label>
-                <select name="genre_id">
-                  <option value="">Select genre</option>
-                  <option value="1">Gospel</option><option value="2">Afrobeats</option>
-                  <option value="3">Hip-Hop</option><option value="4">Dancehall</option><option value="5">RnB</option>
-                </select>
-              </div>
+              <div class="form-group"><label>Genre</label>${genreSelect('genre_id')}</div>
               <div class="form-group"><label>Release Date</label><input type="date" name="release_date"/></div>
               <div class="form-group"><label>Album Artwork</label><input type="file" name="artwork" accept="image/*"/></div>
               <div id="albumMsg" class="hidden"></div>

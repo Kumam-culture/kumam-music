@@ -52,6 +52,23 @@ app.use('/api/search',        require('./routes/search'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/share',         require('./routes/share'));
 
+// Public genre groups (no auth needed)
+const pool = require('./config/database');
+app.get('/api/genre-groups', async (req, res) => {
+  try {
+    const [groups] = await pool.query('SELECT * FROM genre_groups ORDER BY sort_order');
+    const [genres] = await pool.query(`
+      SELECT g.*, gg.name AS group_name, gg.slug AS group_slug, gg.color AS group_color
+      FROM genres g
+      LEFT JOIN genre_groups gg ON g.group_id = gg.id
+      ORDER BY g.group_id, g.sort_order
+    `);
+    res.json({ groups, genres });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -64,7 +81,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🥁 Kumam Music running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+  console.log(`🥁 Etokwa Music running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
 });
 
 module.exports = app;

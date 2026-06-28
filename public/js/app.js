@@ -28,30 +28,69 @@ const App = (() => {
     if (token) {
       try {
         const res = await API.getMe();
-        currentUser = res.user;           // set directly to avoid double-loading
+        currentUser = res.user;
       } catch (e) {
         localStorage.removeItem('kumam_token');
       }
     }
     updateNavForUser(currentUser);
     if (currentUser) loadNotifications();
-    navigate('home');
+
+    // Restore page from URL — handles refresh, shared links, back on load
+    const params = new URLSearchParams(window.location.search);
+    const shareId  = params.get('share');
+    const pageParam = params.get('p');
+
+    if (shareId) {
+      window.history.replaceState({ page: 'home' }, '', '/');
+      try {
+        const res = await API.resolveShare(shareId);
+        if      (res.type === 'artist')   navigate(`artist:${res.ref_uuid}`);
+        else if (res.type === 'album')    navigate(`album:${res.ref_uuid}`);
+        else if (res.type === 'playlist') navigate(`playlist:${res.ref_uuid}`);
+        else                              navigate('home');
+      } catch (e) { navigate('home'); }
+    } else if (pageParam) {
+      const page = decodeURIComponent(pageParam);
+      // Replace current history entry with the restored page (no duplicate push)
+      window.history.replaceState({ page }, '', `/?p=${pageParam}`);
+      _isPopState = true;
+      await navigate(page, false);
+      _isPopState = false;
+    } else {
+      // First load — set a base history entry so back works from first click
+      window.history.replaceState({ page: 'home' }, '', '/');
+      _isPopState = true;
+      await navigate('home', false);
+      _isPopState = false;
+    }
+
     initSearch();
     initSidebar();
     initPlaylistModal();
     initModals();
-    window.addEventListener('load', handleShareLink);
   };
 
   // ── Navigation ───────────────────────────────────────────
-  const navigate = async (page) => {
+  let _isPopState = false;
+
+  const navigate = async (page, pushState = true) => {
     currentPage = page;
     const content = document.getElementById('pageContent');
     if (!content) return;
 
+    // ── Browser history ──────────────────────────────────
+    if (!_isPopState && pushState) {
+      const url = page === 'home' ? '/' : `/?p=${encodeURIComponent(page)}`;
+      window.history.pushState({ page }, '', url);
+    }
+
+    // ── Active nav link ──────────────────────────────────
     document.querySelectorAll('.nav-link[data-page]').forEach(l => {
       l.classList.toggle('active', l.dataset.page === page);
     });
+
+    content.scrollTop = 0;
 
     if (page === 'home')        await Pages.renderHome(content, currentUser);
     else if (page === 'discover')    await Pages.renderDiscover(content);
@@ -140,6 +179,14 @@ const App = (() => {
 
     content.scrollTop = 0;
   };
+
+  // ── Browser back / forward buttons ──────────────────────
+  window.addEventListener('popstate', async (e) => {
+    const page = e.state?.page || 'home';
+    _isPopState = true;
+    await navigate(page, false);
+    _isPopState = false;
+  });
 
   const requireAuth = (roles = []) => {
     if (!currentUser) { Auth.showSignIn(); return false; }
@@ -409,7 +456,7 @@ const App = (() => {
       }
       const disposition = res.headers.get('Content-Disposition') || '';
       const match = disposition.match(/filename="?([^"]+)"?/);
-      const filename = match ? match[1] : `Kumam_Music - song.mp3`;
+      const filename = match ? match[1] : `Etokwa_Music - song.mp3`;
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -569,7 +616,7 @@ const App = (() => {
   const openShare = async (type, refUuid, refTitle) => {
     const overlay = document.getElementById('shareOverlay');
     if (!overlay) return;
-    document.getElementById('shareModalTitle').textContent = `Share "${refTitle||'Kumam Music'}"`;
+    document.getElementById('shareModalTitle').textContent = `Share "${refTitle||'Etokwa Music'}"`;
     document.getElementById('shareModalSubtitle').textContent = `Share this ${type}`;
     document.getElementById('shareLinkInput').value = 'Generating link…';
     document.getElementById('shareCopiedMsg').classList.add('hidden');
@@ -577,9 +624,9 @@ const App = (() => {
     try {
       const res = await API.createShareLink({ type, ref_uuid: refUuid, ref_title: refTitle });
       const url = res.url;
-      _shareData = { url, title: refTitle||'Kumam Music' };
+      _shareData = { url, title: refTitle||'Etokwa Music' };
       document.getElementById('shareLinkInput').value = url;
-      const text = encodeURIComponent(`🎵 Listen on Kumam Music: ${refTitle||''} ${url}`);
+      const text = encodeURIComponent(`🎵 Listen on Etokwa Music: ${refTitle||''} ${url}`);
       document.getElementById('shareWhatsApp').href = `https://wa.me/?text=${text}`;
       document.getElementById('shareFacebook').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
       document.getElementById('shareTwitter').href  = `https://twitter.com/intent/tweet?text=${text}`;
@@ -601,7 +648,7 @@ const App = (() => {
 
   const nativeShare = async () => {
     if (!_shareData || !navigator.share) return;
-    try { await navigator.share({ title: _shareData.title, text:'🎵 Listen on Kumam Music', url: _shareData.url }); }
+    try { await navigator.share({ title: _shareData.title, text:'🎵 Listen on Etokwa Music', url: _shareData.url }); }
     catch (e) {}
   };
 
@@ -671,52 +718,133 @@ const App = (() => {
 
   // ── Init all modal close/event bindings ──────────────────
   const initModals = () => {
-    // ── 3-dot song context menu (global, event-delegated) ───
-    // One floating dropdown reused for all songs
+
+    // ── 3-dot song context menu ─────────────────────────────
+    // Create one shared dropdown, appended to body
     const ctxMenu = document.createElement('div');
+    ctxMenu.id        = 'songCtxMenu';
     ctxMenu.className = 'song-actions-dropdown';
-    ctxMenu.id = 'songCtxMenu';
-    ctxMenu.style.display = 'none';
+    ctxMenu.setAttribute('role', 'menu');
+    ctxMenu.style.cssText = 'display:none;position:fixed;z-index:9999;';
     document.body.appendChild(ctxMenu);
 
-    let ctxSong = null; // current song data for context menu
+    let menuOpen = false;
 
-    // Open menu when any trigger is clicked
+    const closeMenu = () => {
+      ctxMenu.style.display = 'none';
+      menuOpen = false;
+    };
+
+    const openMenu = (trigger, songData) => {
+      const liked = songData.liked;
+      const likeIcon  = liked ? 'fas fa-heart' : 'far fa-heart';
+      const likeLabel = liked ? 'Unlike Song'  : 'Like Song';
+      const likeColor = liked ? 'color:var(--accent)' : '';
+
+      ctxMenu.innerHTML = `
+        <button class="song-action-item" id="ctxLike" style="${likeColor}">
+          <i class="${likeIcon}" style="color:inherit"></i> ${likeLabel}
+        </button>
+        <button class="song-action-item" id="ctxPlaylist">
+          <i class="fas fa-plus"></i> Add to Playlist
+        </button>
+        <button class="song-action-item share-btn-item" id="ctxShare">
+          <i class="fas fa-share-alt"></i> Share
+        </button>
+        ${songData.is_downloadable ? `
+        <button class="song-action-item download" id="ctxDownload">
+          <i class="fas fa-download"></i> Download
+        </button>` : ''}
+      `;
+
+      // Wire up actions (using addEventListener, not inline onclick)
+      ctxMenu.querySelector('#ctxLike')?.addEventListener('click', () => {
+        closeMenu();
+        // Find the like button for this song and click it
+        const likeBtn = document.querySelector(`.like-btn-song[data-uuid="${songData.uuid}"]`);
+        if (likeBtn) likeBtn.click();
+        else if (currentUser) API.likeSong(songData.uuid).then(r => showNotification(r.liked ? 'Added to liked songs ❤️' : 'Removed from liked songs')).catch(() => {});
+        else Auth.showSignIn();
+      });
+
+      ctxMenu.querySelector('#ctxPlaylist')?.addEventListener('click', () => {
+        closeMenu();
+        openAddToPlaylist(songData.uuid);
+      });
+
+      ctxMenu.querySelector('#ctxShare')?.addEventListener('click', () => {
+        closeMenu();
+        openShare('song', songData.uuid, songData.title);
+      });
+
+      ctxMenu.querySelector('#ctxDownload')?.addEventListener('click', () => {
+        closeMenu();
+        downloadSong(songData.uuid);
+      });
+
+      // Position: show first (off-screen) to measure, then place correctly
+      ctxMenu.style.display = 'block';
+      ctxMenu.style.top  = '-9999px';
+      ctxMenu.style.left = '-9999px';
+
+      const rect   = trigger.getBoundingClientRect();
+      const menuW  = ctxMenu.offsetWidth  || 200;
+      const menuH  = ctxMenu.offsetHeight || 160;
+      const vw     = window.innerWidth;
+      const vh     = window.innerHeight;
+
+      let top  = rect.bottom + 6;
+      let left = rect.right - menuW;
+
+      // Flip up if no room below
+      if (top + menuH > vh - 16) top = rect.top - menuH - 6;
+      // Keep within left edge
+      if (left < 8) left = 8;
+      // Keep within right edge
+      if (left + menuW > vw - 8) left = vw - menuW - 8;
+
+      ctxMenu.style.top  = `${top}px`;
+      ctxMenu.style.left = `${left}px`;
+      menuOpen = true;
+    };
+
+    // Event delegation — listen on document for trigger clicks
     document.addEventListener('click', (e) => {
+      // If clicked inside the open menu → let the button handlers above run
+      if (ctxMenu.contains(e.target)) return;
+
+      // If clicked a trigger button
       const trigger = e.target.closest('.song-actions-trigger');
       if (trigger) {
+        e.preventDefault();
         e.stopPropagation();
-        const dataEl = trigger.closest('[data-song]');
-        if (!dataEl) return;
-        try { ctxSong = JSON.parse(dataEl.dataset.song); } catch (err) { return; }
 
-        // Build menu items
-        const items = [];
-        items.push(`<button class="song-action-item" onclick="App.openAddToPlaylist('${ctxSong.uuid}');App.closeCtxMenu()"><i class="fas fa-plus"></i> Add to Playlist</button>`);
-        items.push(`<button class="song-action-item share-btn-item" onclick="App.openShare('song','${ctxSong.uuid}','${(ctxSong.title||'').replace(/'/g,"\\'")}');App.closeCtxMenu()"><i class="fas fa-share-alt"></i> Share</button>`);
-        if (ctxSong.is_downloadable) {
-          items.push(`<button class="song-action-item download" onclick="App.downloadSong('${ctxSong.uuid}');App.closeCtxMenu()"><i class="fas fa-download"></i> Download</button>`);
+        // If same menu is open, toggle it closed
+        if (menuOpen) { closeMenu(); return; }
+
+        // Read song data from the closest [data-song] parent
+        const wrap = trigger.closest('.song-actions-menu');
+        if (!wrap) return;
+
+        let songData;
+        try {
+          // dataset.song is URL-encoded JSON
+          songData = JSON.parse(decodeURIComponent(wrap.getAttribute('data-song')));
+        } catch (err) {
+          console.warn('Could not parse song data:', err);
+          return;
         }
-        ctxMenu.innerHTML = items.join('');
-
-        // Position the menu near the trigger
-        const rect = trigger.getBoundingClientRect();
-        ctxMenu.style.display = 'block';
-        const menuH = ctxMenu.offsetHeight || 140;
-        const menuW = ctxMenu.offsetWidth  || 180;
-        let top  = rect.bottom + 4;
-        let left = rect.right  - menuW;
-        if (top + menuH > window.innerHeight - 20) top = rect.top - menuH - 4;
-        if (left < 8) left = 8;
-        ctxMenu.style.top  = `${top}px`;
-        ctxMenu.style.left = `${left}px`;
+        openMenu(trigger, songData);
         return;
       }
-      // Click anywhere else → close menu
-      ctxMenu.style.display = 'none';
-    });
 
-    window.addEventListener('scroll', () => { ctxMenu.style.display = 'none'; }, true);
+      // Clicked outside → close
+      if (menuOpen) closeMenu();
+    }, true); // use capture so it fires before stopPropagation elsewhere
+
+    // Close on scroll or ESC
+    window.addEventListener('scroll', closeMenu, true);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 
     // ── Player share button ─────────────────────────────────
     document.getElementById('sharePlayerBtn')?.addEventListener('click', () => {
@@ -832,8 +960,31 @@ const App = (() => {
     if (m) m.style.display = 'none';
   };
 
+  // ── Theme ────────────────────────────────────────────────
+  const setTheme = (mode) => {
+    if (mode === 'dark') {
+      document.body.classList.add('dark-mode');
+      localStorage.setItem('kumam_theme', 'dark');
+    } else {
+      document.body.classList.remove('dark-mode');
+      localStorage.setItem('kumam_theme', 'light');
+    }
+    const toggle = document.getElementById('darkModeToggle');
+    if (toggle) toggle.checked = (mode === 'dark');
+  };
+
+  const loadTheme = () => {
+    if (localStorage.getItem('kumam_theme') === 'dark') {
+      document.body.classList.add('dark-mode');
+    }
+    // Default is light — nothing to do
+  };
+
   // ── Boot ─────────────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => {
+    loadTheme();
+    init();
+  });
 
   return {
     navigate, getUser, setUser, updateNavForUser,
@@ -842,7 +993,7 @@ const App = (() => {
     playAllFromPlaylist, playSongFromRow, playFromSearch,
     downloadSong, deleteSong, closeCtxMenu,
     adminToggleUser, adminDeleteUser, adminToggleSong, adminDeleteSong, adminApproveSub,
-    deleteAccount,
+    deleteAccount, setTheme,
     loadNotifications, dismissNotification, dismissAllNotifications, updateNotifBadge,
     openShare, copyShareLink, nativeShare,
     openDonation, checkDonationStatus, showDonationBreakdown,
