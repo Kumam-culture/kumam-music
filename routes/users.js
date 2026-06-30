@@ -87,11 +87,12 @@ router.get('/followed-artists', authenticate, async (req, res) => {
   try {
     const [artists] = await pool.query(`
       SELECT u.id, u.uuid, u.name, u.avatar,
-        ap.stage_name, ap.genre, ap.total_streams,
+        ap.stage_name, t.name AS tribe_name, ap.total_streams,
         1 AS is_following, f.created_at AS followed_at
       FROM follows f
       JOIN users u ON f.artist_id = u.id
       LEFT JOIN artist_profiles ap ON u.id = ap.user_id
+      LEFT JOIN tribes t ON ap.tribe_id = t.id
       WHERE f.follower_id = ? AND u.is_active = TRUE
       ORDER BY f.created_at DESC
     `, [req.user.id]);

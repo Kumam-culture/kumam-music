@@ -38,7 +38,7 @@ router.get('/dashboard/stats', authenticate, requireRole('artist'), async (req, 
 // ── PUT /api/artists/profile  (BEFORE /:uuid) ──────────────────
 router.put('/profile', authenticate, requireRole('artist'), uploadProfile.single('avatar'), async (req, res) => {
   try {
-    const { name, bio, stage_name, genre, location, website, social_instagram, social_twitter, mtn_number, airtel_number } = req.body;
+    const { name, bio, stage_name, region_id, tribe_id, location, website, social_instagram, social_twitter, mtn_number, airtel_number } = req.body;
     const avatarPath = req.file?.path || null; // Cloudinary secure_url
 
     const uCols = [], uVals = [];
@@ -48,7 +48,12 @@ router.put('/profile', authenticate, requireRole('artist'), uploadProfile.single
     if (uCols.length) await pool.query(`UPDATE users SET ${uCols.join(',')} WHERE id = ?`, [...uVals, req.user.id]);
 
     const aCols = [], aVals = [];
-    const apMap = { stage_name, genre, location, website, social_instagram, social_twitter, mtn_number, airtel_number };
+    const apMap = {
+      stage_name,
+      region_id: region_id ? parseInt(region_id) : undefined,
+      tribe_id:  tribe_id  ? parseInt(tribe_id)  : undefined,
+      location, website, social_instagram, social_twitter, mtn_number, airtel_number
+    };
     for (const [k, v] of Object.entries(apMap)) {
       if (v !== undefined) { aCols.push(`${k} = ?`); aVals.push(v); }
     }
@@ -66,7 +71,8 @@ router.get('/', optionalAuth, async (req, res) => {
   try {
     const limit  = Math.max(1, Math.min(100, parseInt(req.query.limit)  || 20));
     const offset = Math.max(0, parseInt(req.query.offset) || 0);
-    const genre  = (req.query.genre || '').trim();
+    const region = (req.query.region || '').trim();
+    const tribe  = (req.query.tribe  || '').trim();
     const userId = req.user ? req.user.id : null;
 
     // Inline escape to avoid prepared-statement subquery bug
@@ -75,23 +81,29 @@ router.get('/', optionalAuth, async (req, res) => {
       : `0 AS is_following`;
 
     let where = "WHERE u.role = 'artist' AND u.is_active = TRUE";
-    if (genre) where += ` AND ap.genre LIKE ${pool.escape('%' + genre + '%')}`;
+    if (region) where += ` AND r.slug = ${pool.escape(region)}`;
+    if (tribe)  where += ` AND t.slug = ${pool.escape(tribe)}`;
 
     const sql = `
       SELECT u.id, u.uuid, u.name, u.avatar, u.bio, u.created_at,
-        ap.stage_name, ap.genre, ap.location, ap.total_streams,
+        ap.stage_name, ap.location, ap.total_streams,
+        r.name AS region_name, r.slug AS region_slug,
+        t.name AS tribe_name,  t.slug AS tribe_slug,
         COUNT(DISTINCT s.id)          AS song_count,
         COUNT(DISTINCT al.id)         AS album_count,
         COUNT(DISTINCT f.follower_id) AS follower_count,
         ${followingExpr}
       FROM users u
       JOIN artist_profiles ap ON u.id = ap.user_id
+      LEFT JOIN regions r ON ap.region_id = r.id
+      LEFT JOIN tribes  t ON ap.tribe_id  = t.id
       LEFT JOIN songs s  ON u.id = s.artist_id  AND s.is_published  = TRUE
       LEFT JOIN albums al ON u.id = al.artist_id AND al.is_published = TRUE
       LEFT JOIN follows f ON u.id = f.artist_id
       ${where}
       GROUP BY u.id, u.uuid, u.name, u.avatar, u.bio, u.created_at,
-               ap.stage_name, ap.genre, ap.location, ap.total_streams
+               ap.stage_name, ap.location, ap.total_streams,
+               r.name, r.slug, t.name, t.slug
       ORDER BY ap.total_streams DESC
       LIMIT ? OFFSET ?
     `;
@@ -114,17 +126,22 @@ router.get('/:uuid', optionalAuth, async (req, res) => {
 
     const [rows] = await pool.query(`
       SELECT u.id, u.uuid, u.name, u.avatar, u.bio, u.created_at,
-        ap.stage_name, ap.genre, ap.location, ap.website,
+        ap.stage_name, ap.location, ap.website,
         ap.social_instagram, ap.social_twitter, ap.total_streams,
+        r.name AS region_name, r.slug AS region_slug,
+        t.name AS tribe_name,  t.slug AS tribe_slug,
         COUNT(DISTINCT f.follower_id) AS follower_count,
         ${followingExpr}
       FROM users u
       JOIN artist_profiles ap ON u.id = ap.user_id
+      LEFT JOIN regions r ON ap.region_id = r.id
+      LEFT JOIN tribes  t ON ap.tribe_id  = t.id
       LEFT JOIN follows f ON u.id = f.artist_id
       WHERE u.uuid = ? AND u.role = 'artist' AND u.is_active = TRUE
       GROUP BY u.id, u.uuid, u.name, u.avatar, u.bio, u.created_at,
-               ap.stage_name, ap.genre, ap.location, ap.website,
-               ap.social_instagram, ap.social_twitter, ap.total_streams
+               ap.stage_name, ap.location, ap.website,
+               ap.social_instagram, ap.social_twitter, ap.total_streams,
+               r.name, r.slug, t.name, t.slug
     `, [req.params.uuid]);
 
     if (!rows.length) return res.status(404).json({ error: 'Artist not found' });

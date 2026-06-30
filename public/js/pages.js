@@ -696,7 +696,7 @@ const Pages = (() => {
           <div class="profile-info">
             <div class="name">${a.stage_name || a.name}</div>
             <div class="role-badge">Artist</div>
-            <div class="meta">${fmtNum(a.follower_count||0)} followers · ${fmtNum(a.total_streams||0)} streams ${a.genre ? '· ' + a.genre : ''} ${a.location ? '· 📍 ' + a.location : ''}</div>
+            <div class="meta">${fmtNum(a.follower_count||0)} followers · ${fmtNum(a.total_streams||0)} streams ${a.tribe_name ? '· ' + a.tribe_name : ''} ${a.region_name ? '· 📍 ' + a.region_name : ''}</div>
             <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
               <button class="btn ${a.is_following?'btn-primary':'btn-outline'}" id="artistFollowBtn" onclick="App.toggleFollow(this,'${a.uuid}')">
                 ${a.is_following ? '<i class="fas fa-check"></i> Following' : '<i class="fas fa-plus"></i> Follow'}

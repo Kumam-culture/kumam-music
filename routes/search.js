@@ -29,13 +29,14 @@ router.get('/', optionalAuth, async (req, res) => {
 
     if (type === 'all' || type === 'artists') {
       const [artists] = await pool.query(`
-        SELECT u.uuid, u.name, u.avatar, ap.stage_name, ap.genre,
+        SELECT u.uuid, u.name, u.avatar, ap.stage_name, t.name AS tribe_name,
           COUNT(DISTINCT f.follower_id) AS follower_count
         FROM users u
         JOIN artist_profiles ap ON u.id = ap.user_id
+        LEFT JOIN tribes t ON ap.tribe_id = t.id
         LEFT JOIN follows f ON u.id = f.artist_id
         WHERE u.role = 'artist' AND u.is_active = TRUE
-          AND (u.name LIKE ? OR ap.stage_name LIKE ? OR ap.genre LIKE ?)
+          AND (u.name LIKE ? OR ap.stage_name LIKE ? OR t.name LIKE ?)
         GROUP BY u.id
         ORDER BY follower_count DESC LIMIT ?
       `, [search, search, search, lim]);
