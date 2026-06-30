@@ -112,8 +112,15 @@ const API = (() => {
     createShareLink: (data) => request('POST', '/share', data),
     resolveShare:    (uuid) => request('GET',  `/share/${uuid}`),
 
-    // Genre groups
-    getGenreGroups: () => request('GET', '/genre-groups'),
+    // Regions & Tribes
+    getRegions:      ()           => request('GET', '/regions'),
+    getTribesByRegion:(regionSlug)=> request('GET', `/regions/${regionSlug}/tribes`),
+
+    // Genres
+    getGenres: () => request('GET', '/genres'),
+
+    // Genre groups (legacy — now returns same as getGenres)
+    getGenreGroups: () => request('GET', '/genres'),
 
     // Search
     search: (q, type='all') => request('GET', `/search?q=${encodeURIComponent(q)}&type=${type}`),

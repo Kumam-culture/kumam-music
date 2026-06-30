@@ -154,8 +154,8 @@ const Pages = (() => {
         <div class="hero">
           <div class="hero-content">
             <div class="hero-badge"><img src="/images/kumam-drum-logo.png" alt="" style="height:18px;object-fit:contain;border-radius:3px"/> ETOKWA MUSIC</div>
-            <h1>${user ? `You're on, ${user.name.split(' ')[0]}!<br/>` : ''}<span class="highlight">Press Play and Lose Yourself,</span><br/>Home of Live Culture</h1>
-            <p>Play. Discover. Support. Etokwa Music: Where rising stars shine, hidden traditions sing, and every stream powers Uganda's next sound</p>
+            <h1>${user ? `Hey, ${user.name.split(' ')[0]}! 👋<br/>` : ''}<span class="highlight">Feel the Rhythm,</span><br/>Live the Culture</h1>
+            <p>Stream authentic Kumam music — Gospel, Afrobeats, Hip-Hop, Dancehall, RnB and more. Support your favourite local artists.</p>
             <div class="hero-cta">
               ${!user ? `<button class="btn btn-primary" onclick="Auth.showSignUp()"><i class="fas fa-music"></i> Get Started Free</button>` : ''}
               <button class="btn btn-outline" onclick="App.navigate('discover')"><i class="fas fa-compass"></i> Discover Music</button>
@@ -238,29 +238,30 @@ const Pages = (() => {
   const renderDiscover = async (container) => {
     container.innerHTML = loading();
     try {
-      const res = await API.getGenreGroups();
-      const { groups = [], genres = [] } = res;
+      const [genresRes, regionsRes] = await Promise.all([API.getGenres(), API.getRegions()]);
+      const { genres = [] } = genresRes;
+      const { regions = [] } = regionsRes;
 
-      // Build flat list with group separators
-      let pillsHtml = `<div class="genre-pill ${''}" data-genre="" onclick="Pages.filterDiscover(this,'')">All</div>`;
-      groups.forEach(grp => {
-        const grpGenres = genres.filter(g => g.group_id === grp.id);
-        if (!grpGenres.length) return;
-        pillsHtml += `<div class="genre-group-pill-label" style="color:${grp.color}">${grp.name}</div>`;
-        grpGenres.forEach(g => {
-          pillsHtml += `<div class="genre-pill" data-genre="${g.slug}" onclick="Pages.filterDiscover(this,'${g.slug}')" style="--pill-active-color:${g.color || grp.color}">${g.name}</div>`;
-        });
+      let pillsHtml = `<div class="genre-pill active" data-genre="" onclick="Pages.filterDiscover(this,'')">All</div>`;
+      genres.forEach(g => {
+        pillsHtml += `<div class="genre-pill" data-genre="${g.slug}" onclick="Pages.filterDiscover(this,'${g.slug}')" style="--pill-active-color:${g.color}">${g.name}</div>`;
       });
 
       container.innerHTML = `
         <div class="section">
           <div class="section-header"><h2 class="section-title"><i class="fas fa-compass"></i> Discover Music</h2></div>
-          <div class="genre-pills discover-pills">${pillsHtml}</div>
+
+          <div style="margin-bottom:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)">Filter by Genre</div>
+          <div class="genre-pills">${pillsHtml}</div>
+
+          <div style="margin:18px 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)">Or Browse by Region</div>
+          <div class="genre-tags-wrap" style="margin-bottom:20px">
+            ${regions.map(r => `<button class="genre-tag" style="--tag-color:${r.color}" onclick="App.navigate('region:${r.slug}')"><i class="fas fa-map-marker-alt"></i> ${r.name}</button>`).join('')}
+          </div>
+
           <div id="discoverSongsGrid">${loading()}</div>
         </div>`;
 
-      // Activate "All" pill
-      container.querySelector('.genre-pill').classList.add('active');
       await loadDiscoverSongs('');
     } catch (e) {
       container.innerHTML = `<p style="color:var(--red);padding:32px">${e.message}</p>`;
@@ -291,67 +292,92 @@ const Pages = (() => {
   const renderGenres = async (container) => {
     container.innerHTML = loading();
     try {
-      const res = await API.getGenreGroups();
-      const { groups = [], genres = [] } = res;
-
-      // Group genres by group_id
-      const byGroup = {};
-      genres.forEach(g => {
-        if (!byGroup[g.group_id]) byGroup[g.group_id] = [];
-        byGroup[g.group_id].push(g);
-      });
+      const [regionsRes, genresRes] = await Promise.all([
+        API.getRegions(),
+        API.getGenres(),
+      ]);
+      const { regions = [], tribes = [] } = regionsRes;
+      const { genres = [] } = genresRes;
 
       container.innerHTML = `
-        <div class="section">
+        <div class="section" style="padding-bottom:0">
           <div class="section-header">
-            <h2 class="section-title"><i class="fas fa-map-marked-alt"></i> Browse by Region & Style</h2>
+            <h2 class="section-title"><i class="fas fa-compass"></i> Browse Music</h2>
           </div>
-          ${groups.map(grp => {
-            const grpGenres = byGroup[grp.id] || [];
-            return `
-              <div class="genre-group-block">
-                <div class="genre-group-header">
-                  <div class="genre-group-icon" style="background:${grp.color}22;color:${grp.color}">
-                    <i class="fas fa-${grp.icon || 'music'}"></i>
+          <div class="browse-tabs">
+            <div class="browse-tab active" data-tab="region" onclick="Pages.switchBrowseTab(this,'region')">
+              <i class="fas fa-map-marker-alt"></i> By Region & Tribe
+            </div>
+            <div class="browse-tab" data-tab="genre" onclick="Pages.switchBrowseTab(this,'genre')">
+              <i class="fas fa-music"></i> By Genre
+            </div>
+          </div>
+        </div>
+
+        <div class="browse-panel active" id="browse-region">
+          <div class="section">
+            ${regions.map(r => {
+              const regionTribes = tribes.filter(t => t.region_id === r.id);
+              return `
+                <div class="genre-group-block">
+                  <div class="genre-group-header" style="cursor:pointer" onclick="App.navigate('region:${r.slug}')">
+                    <div class="genre-group-icon" style="background:${r.color}22;color:${r.color}">
+                      <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <div style="flex:1">
+                      <div class="genre-group-name">${r.name}</div>
+                      <div class="genre-group-desc">${regionTribes.length} tribes · Tap to see all songs from this region</div>
+                    </div>
+                    <i class="fas fa-chevron-right" style="color:var(--text-muted)"></i>
                   </div>
-                  <div>
-                    <div class="genre-group-name">${grp.name}</div>
-                    <div class="genre-group-desc">${grp.description || ''}</div>
+                  <div class="genre-tags-wrap">
+                    ${regionTribes.map(t => `
+                      <button class="genre-tag" style="--tag-color:${r.color}" onclick="App.navigate('tribe:${t.slug}')">
+                        ${t.name}
+                      </button>`).join('')}
                   </div>
-                </div>
-                <div class="genre-tags-wrap">
-                  ${grpGenres.map(g => `
-                    <button class="genre-tag" style="--tag-color:${g.color || grp.color}"
-                      onclick="App.navigate('genre:${g.slug}')">
-                      ${g.name}
-                    </button>`).join('')}
-                </div>
-              </div>`;
-          }).join('')}
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="browse-panel" id="browse-genre">
+          <div class="section">
+            <div class="genre-tags-wrap" style="gap:10px">
+              ${genres.map(g => `
+                <button class="genre-tag genre-tag-lg" style="--tag-color:${g.color}" onclick="App.navigate('genre:${g.slug}')">
+                  <i class="fas fa-${g.icon||'music'}"></i> ${g.name}
+                </button>`).join('')}
+            </div>
+          </div>
         </div>`;
     } catch (e) {
       container.innerHTML = `<p style="color:var(--red);padding:32px">${e.message}</p>`;
     }
   };
 
+  const switchBrowseTab = (el, tab) => {
+    document.querySelectorAll('.browse-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.browse-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`browse-${tab}`)?.classList.add('active');
+  };
+
   // ════════════════════════════════════════════════════════
-  // GENRE DETAIL
+  // GENRE DETAIL  (by style — Gospel, Afrobeats, etc.)
   // ════════════════════════════════════════════════════════
   const renderGenreDetail = async (container, slug) => {
     container.innerHTML = loading();
     try {
-      // Get genre info
-      const grpRes = await API.getGenreGroups();
-      const genre = (grpRes.genres || []).find(g => g.slug === slug);
-      const group = genre ? (grpRes.groups || []).find(g => g.id === genre.group_id) : null;
-
+      const genresRes = await API.getGenres();
+      const genre = (genresRes.genres || []).find(g => g.slug === slug);
       const res = await API.getSongs({ genre: slug, limit: 100, sort: 'trending' });
-      const color = genre?.color || group?.color || 'var(--accent)';
+      const color = genre?.color || 'var(--accent)';
 
       container.innerHTML = `
         <div style="background:${color}15;padding:24px 32px;border-bottom:1px solid var(--border)">
           <div style="font-size:12px;color:${color};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">
-            ${group ? `<i class="fas fa-map-marker-alt"></i> ${group.name}` : ''}
+            <i class="fas fa-music"></i> Genre
           </div>
           <h2 style="font-size:26px;font-weight:800;margin-bottom:4px">${genre?.name || slug}</h2>
           <span style="color:var(--text-muted);font-size:13px">${res.songs?.length || 0} songs</span>
@@ -359,6 +385,69 @@ const Pages = (() => {
         <div class="section">
           <div class="songs-list">
             ${(res.songs||[]).map((s,i) => songRow(s, i)).join('') || empty('music','No songs in this genre yet','Be the first to upload!')}
+          </div>
+        </div>`;
+    } catch (e) {
+      container.innerHTML = `<p style="color:var(--red);padding:32px">${e.message}</p>`;
+    }
+  };
+
+  // ════════════════════════════════════════════════════════
+  // REGION DETAIL  (all songs from a region, any tribe/genre)
+  // ════════════════════════════════════════════════════════
+  const renderRegionDetail = async (container, slug) => {
+    container.innerHTML = loading();
+    try {
+      const regionsRes = await API.getRegions();
+      const region = (regionsRes.regions || []).find(r => r.slug === slug);
+      const tribesInRegion = (regionsRes.tribes || []).filter(t => region && t.region_id === region.id);
+      const res = await API.getSongs({ region: slug, limit: 100, sort: 'trending' });
+      const color = region?.color || 'var(--accent)';
+
+      container.innerHTML = `
+        <div style="background:${color}15;padding:24px 32px;border-bottom:1px solid var(--border)">
+          <div style="font-size:12px;color:${color};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">
+            <i class="fas fa-map-marker-alt"></i> Region
+          </div>
+          <h2 style="font-size:26px;font-weight:800;margin-bottom:8px">${region?.name || slug}</h2>
+          <div class="genre-tags-wrap">
+            ${tribesInRegion.map(t => `<button class="genre-tag" style="--tag-color:${color}" onclick="App.navigate('tribe:${t.slug}')">${t.name}</button>`).join('')}
+          </div>
+          <span style="color:var(--text-muted);font-size:13px;display:block;margin-top:10px">${res.songs?.length || 0} songs</span>
+        </div>
+        <div class="section">
+          <div class="songs-list">
+            ${(res.songs||[]).map((s,i) => songRow(s, i)).join('') || empty('music','No songs from this region yet','Be the first to upload!')}
+          </div>
+        </div>`;
+    } catch (e) {
+      container.innerHTML = `<p style="color:var(--red);padding:32px">${e.message}</p>`;
+    }
+  };
+
+  // ════════════════════════════════════════════════════════
+  // TRIBE DETAIL  (all songs from a specific tribe)
+  // ════════════════════════════════════════════════════════
+  const renderTribeDetail = async (container, slug) => {
+    container.innerHTML = loading();
+    try {
+      const regionsRes = await API.getRegions();
+      const tribe  = (regionsRes.tribes  || []).find(t => t.slug === slug);
+      const region = tribe ? (regionsRes.regions || []).find(r => r.id === tribe.region_id) : null;
+      const res = await API.getSongs({ tribe: slug, limit: 100, sort: 'trending' });
+      const color = region?.color || 'var(--accent)';
+
+      container.innerHTML = `
+        <div style="background:${color}15;padding:24px 32px;border-bottom:1px solid var(--border)">
+          <div style="font-size:12px;color:${color};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">
+            ${region ? `<i class="fas fa-map-marker-alt"></i> ${region.name}` : ''}
+          </div>
+          <h2 style="font-size:26px;font-weight:800;margin-bottom:4px">${tribe?.name || slug}</h2>
+          <span style="color:var(--text-muted);font-size:13px">${res.songs?.length || 0} songs</span>
+        </div>
+        <div class="section">
+          <div class="songs-list">
+            ${(res.songs||[]).map((s,i) => songRow(s, i)).join('') || empty('music','No songs from this tribe yet','Be the first to upload!')}
           </div>
         </div>`;
     } catch (e) {
@@ -918,18 +1007,16 @@ const Pages = (() => {
   // ════════════════════════════════════════════════════════
   const renderUpload = async (container) => {
     let albums = [];
-    let genreGroups = [], allGenres = [];
+    let allGenres = [], regions = [], tribes = [];
     try { const r = await API.getMyAlbums(); albums = r.albums || []; } catch (e) {}
-    try { const r = await API.getGenreGroups(); genreGroups = r.groups || []; allGenres = r.genres || []; } catch (e) {}
+    try { const r = await API.getGenres(); allGenres = r.genres || []; } catch (e) {}
+    try { const r = await API.getRegions(); regions = r.regions || []; tribes = r.tribes || []; } catch (e) {}
 
-    // Build grouped <optgroup> select
     const genreSelect = (name) => {
-      const groups = genreGroups.map(grp => {
-        const grpGenres = allGenres.filter(g => g.group_id === grp.id);
-        if (!grpGenres.length) return '';
-        return `<optgroup label="${grp.name}">${grpGenres.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}</optgroup>`;
-      }).join('');
-      return `<select name="${name}"><option value="">Select genre</option>${groups}</select>`;
+      return `<select name="${name}"><option value="">Select genre</option>${allGenres.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}</select>`;
+    };
+    const regionSelect = () => {
+      return `<select name="region_id" id="songRegionSelect"><option value="">Select region (optional)</option>${regions.map(r => `<option value="${r.id}" data-region-id="${r.id}">${r.name}</option>`).join('')}</select>`;
     };
 
     container.innerHTML = `
@@ -950,8 +1037,16 @@ const Pages = (() => {
               <input type="text" name="title" placeholder="Enter song title" required/>
             </div>
             <div class="form-group">
-              <label>Genre</label>
+              <label>Genre <small style="color:var(--text-muted)">(style — e.g. Gospel, Afrobeats, Traditional)</small></label>
               ${genreSelect('genre_id')}
+            </div>
+            <div class="form-group">
+              <label>Region <small style="color:var(--text-muted)">(optional — helps fans find regional music)</small></label>
+              ${regionSelect()}
+            </div>
+            <div class="form-group" id="songTribeWrap" style="display:none">
+              <label>Tribe</label>
+              <select name="tribe_id" id="songTribeSelect"><option value="">Select tribe</option></select>
             </div>
             <div class="form-group">
               <label>Album (optional)</label>
@@ -1003,6 +1098,22 @@ const Pages = (() => {
           </div>
         </div>
       </div>`;
+
+    // Region → Tribe cascade for song upload
+    document.getElementById('songRegionSelect')?.addEventListener('change', (e) => {
+      const regionId = parseInt(e.target.value);
+      const tribeWrap = document.getElementById('songTribeWrap');
+      const tribeSel  = document.getElementById('songTribeSelect');
+      tribeSel.innerHTML = '<option value="">Select tribe</option>';
+      if (!regionId) { tribeWrap.style.display = 'none'; return; }
+      const regionTribes = tribes.filter(t => t.region_id === regionId);
+      regionTribes.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id; opt.textContent = t.name;
+        tribeSel.appendChild(opt);
+      });
+      tribeWrap.style.display = 'block';
+    });
 
     // Audio drop zone
     const audioZone = document.getElementById('audioDropZone');
@@ -1632,6 +1743,7 @@ const Pages = (() => {
 
   return {
     renderHome, renderDiscover, renderGenres, renderGenreDetail, renderCharts,
+    renderRegionDetail, renderTribeDetail, switchBrowseTab,
     renderLibrary, renderLiked, renderHistory, renderPlaylists, renderPlaylist,
     renderAlbum, renderArtist, renderProfile, renderSettings, renderSubscription,
     renderArtistDashboard, renderUpload, renderMySongs, renderAdmin,

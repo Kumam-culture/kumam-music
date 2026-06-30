@@ -39,7 +39,9 @@ router.get('/', optionalAuth, async (req, res) => {
   try {
     const limit  = Math.max(1, Math.min(200, parseInt(req.query.limit)  || 20));
     const offset = Math.max(0, parseInt(req.query.offset) || 0);
-    const genre  = (req.query.genre || '').trim();
+    const genre   = (req.query.genre  || '').trim();
+    const region  = (req.query.region || '').trim();
+    const tribe   = (req.query.tribe  || '').trim();
     const sort   = req.query.sort || 'newest';
     const userId = req.user ? req.user.id : null;
 
@@ -48,7 +50,9 @@ router.get('/', optionalAuth, async (req, res) => {
       : `0 AS liked`;
 
     let where = 'WHERE s.is_published = TRUE';
-    if (genre) where += ` AND g.slug = ${pool.escape(genre)}`;
+    if (genre)  where += ` AND g.slug = ${pool.escape(genre)}`;
+    if (region) where += ` AND r.slug = ${pool.escape(region)}`;
+    if (tribe)  where += ` AND t.slug = ${pool.escape(tribe)}`;
 
     const order = (sort === 'trending' || sort === 'popular')
       ? 's.stream_count DESC' : 's.created_at DESC';
@@ -57,12 +61,16 @@ router.get('/', optionalAuth, async (req, res) => {
       SELECT s.*, u.name AS artist_name, u.avatar AS artist_avatar,
         ap.stage_name, g.name AS genre_name,
         al.title AS album_title, al.artwork AS album_artwork,
+        r.name AS region_name, r.slug AS region_slug,
+        t.name AS tribe_name, t.slug AS tribe_slug,
         ${likedExpr}
       FROM songs s
       JOIN users u  ON s.artist_id = u.id
       LEFT JOIN artist_profiles ap ON u.id  = ap.user_id
       LEFT JOIN genres g           ON s.genre_id  = g.id
       LEFT JOIN albums al          ON s.album_id  = al.id
+      LEFT JOIN regions r         ON s.region_id = r.id
+      LEFT JOIN tribes t          ON s.tribe_id  = t.id
       ${where}
       ORDER BY ${order}
       LIMIT ? OFFSET ?
@@ -121,8 +129,8 @@ router.post('/upload', authenticate, requireRole('artist'), (req, res, next) => 
 
     const [result] = await pool.query(
       `INSERT INTO songs
-        (uuid,artist_id,album_id,title,file_path,artwork,genre_id,lyrics,is_downloadable,is_premium,is_published,track_number)
-       VALUES (?,?,?,?,?,?,?,?,?,?,TRUE,?)`,
+        (uuid,artist_id,album_id,title,file_path,artwork,genre_id,region_id,tribe_id,lyrics,is_downloadable,is_premium,is_published,track_number)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?)`,
       [uuid, req.user.id, albumIdVal, title, filePath, artworkPath,
        genreIdVal, lyrics||null, downloadable, premium, trackNum]
     );

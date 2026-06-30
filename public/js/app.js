@@ -175,6 +175,8 @@ const App = (() => {
     else if (page.startsWith('album:'))    await Pages.renderAlbum(content, page.split(':')[1]);
     else if (page.startsWith('playlist:')) await Pages.renderPlaylist(content, page.split(':')[1]);
     else if (page.startsWith('genre:'))    await Pages.renderGenreDetail(content, page.split(':')[1]);
+    else if (page.startsWith('region:'))   await Pages.renderRegionDetail(content, page.split(':')[1]);
+    else if (page.startsWith('tribe:'))    await Pages.renderTribeDetail(content, page.split(':')[1]);
     else content.innerHTML = `<div class="section"><p class="text-muted">Page not found</p></div>`;
 
     content.scrollTop = 0;

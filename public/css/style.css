@@ -2042,3 +2042,41 @@ body:not(.dark-mode) .tribal-border {
 /* Light mode overrides */
 body:not(.dark-mode) .genre-tag { background: transparent; }
 body:not(.dark-mode) .genre-group-block { border-color: rgba(0,0,0,0.08); }
+
+/* ============================================================
+   BROWSE TABS (Region/Tribe vs Genre)
+   ============================================================ */
+.browse-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+.browse-tab {
+  padding: 12px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-muted);
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.browse-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.browse-tab:hover:not(.active) { color: var(--text-primary); }
+
+.browse-panel { display: none; }
+.browse-panel.active { display: block; }
+
+.genre-tag-lg {
+  padding: 10px 20px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
