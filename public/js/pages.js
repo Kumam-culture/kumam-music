@@ -154,8 +154,8 @@ const Pages = (() => {
         <div class="hero">
           <div class="hero-content">
             <div class="hero-badge"><img src="/images/kumam-drum-logo.png" alt="" style="height:18px;object-fit:contain;border-radius:3px"/> ETOKWA MUSIC</div>
-            <h1>${user ? `Hey, ${user.name.split(' ')[0]}! 👋<br/>` : ''}<span class="highlight">Feel the Rhythm,</span><br/>Live the Culture</h1>
-            <p>Stream authentic Kumam music — Gospel, Afrobeats, Hip-Hop, Dancehall, RnB and more. Support your favourite local artists.</p>
+            <h1>${user ? `You are on, ${user.name.split(' ')[0]}! <br/>` : ''}<span class="highlight">Press Play and Lose Yourself,</span><br/>Live the Culture</h1>
+            <p>Play. Discover. Support. Etokwa Music: Where rising Stars shine, hidden traditon sing, and every stream powers Uganda's next Sound.</p>
             <div class="hero-cta">
               ${!user ? `<button class="btn btn-primary" onclick="Auth.showSignUp()"><i class="fas fa-music"></i> Get Started Free</button>` : ''}
               <button class="btn btn-outline" onclick="App.navigate('discover')"><i class="fas fa-compass"></i> Discover Music</button>
