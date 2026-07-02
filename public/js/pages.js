@@ -1007,22 +1007,38 @@ const Pages = (() => {
   // ════════════════════════════════════════════════════════
   const renderUpload = async (container) => {
     let albums = [];
-    let allGenres = [], regions = [], tribes = [];
+    let allGenres = [];
+    let artistRegion = '', artistTribe = '';
     try { const r = await API.getMyAlbums(); albums = r.albums || []; } catch (e) {}
-    try { const r = await API.getGenres(); allGenres = r.genres || []; } catch (e) {}
-    try { const r = await API.getRegions(); regions = r.regions || []; tribes = r.tribes || []; } catch (e) {}
+    try { const r = await API.getGenres();   allGenres = r.genres || []; } catch (e) {}
 
-    const genreSelect = (name) => {
-      return `<select name="${name}"><option value="">Select genre</option>${allGenres.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}</select>`;
-    };
-    const regionSelect = () => {
-      return `<select name="region_id" id="songRegionSelect"><option value="">Select region (optional)</option>${regions.map(r => `<option value="${r.id}" data-region-id="${r.id}">${r.name}</option>`).join('')}</select>`;
-    };
+    // Fetch artist's own region/tribe to display as info banner
+    try {
+      const me = App.getUser();
+      if (me) {
+        const res = await API.getArtist(me.uuid);
+        artistRegion = res.artist?.region_name || '';
+        artistTribe  = res.artist?.tribe_name  || '';
+      }
+    } catch (e) {}
+
+    const genreSelect = (name) => `
+      <select name="${name}">
+        <option value="">Select genre</option>
+        ${allGenres.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}
+      </select>`;
 
     container.innerHTML = `
       <div class="section">
         <div class="section-header"><h2 class="section-title"><i class="fas fa-upload"></i> Upload Music</h2></div>
         <div class="upload-form">
+
+          ${artistRegion || artistTribe ? `
+          <div class="alert" style="background:var(--accent-glow);border:1px solid var(--accent);color:var(--text-primary);margin-bottom:20px">
+            <i class="fas fa-map-marker-alt" style="color:var(--accent)"></i>
+            <span>Your songs will automatically be grouped under <strong>${[artistTribe, artistRegion].filter(Boolean).join(' · ')}</strong>. No need to fill in region or tribe for each song.</span>
+          </div>` : ''}
+
           <form id="uploadSongForm" enctype="multipart/form-data">
             <div class="upload-area" id="audioDropZone">
               <i class="fas fa-music"></i>
@@ -1036,18 +1052,12 @@ const Pages = (() => {
               <label>Song Title *</label>
               <input type="text" name="title" placeholder="Enter song title" required/>
             </div>
+
             <div class="form-group">
-              <label>Genre <small style="color:var(--text-muted)">(style — e.g. Gospel, Afrobeats, Traditional)</small></label>
+              <label>Genre <small style="color:var(--text-muted)">(e.g. Gospel, Afrobeats, Traditional, Amapiano...)</small></label>
               ${genreSelect('genre_id')}
             </div>
-            <div class="form-group">
-              <label>Region <small style="color:var(--text-muted)">(optional — helps fans find regional music)</small></label>
-              ${regionSelect()}
-            </div>
-            <div class="form-group" id="songTribeWrap" style="display:none">
-              <label>Tribe</label>
-              <select name="tribe_id" id="songTribeSelect"><option value="">Select tribe</option></select>
-            </div>
+
             <div class="form-group">
               <label>Album (optional)</label>
               <select name="album_id">
@@ -1055,10 +1065,12 @@ const Pages = (() => {
                 ${albums.map(al => `<option value="${al.id}">${al.title}</option>`).join('')}
               </select>
             </div>
+
             <div class="form-group">
               <label>Track Number (if in album)</label>
               <input type="number" name="track_number" min="1" placeholder="e.g. 1"/>
             </div>
+
             <div class="form-group">
               <label>Artwork (optional)</label>
               <div class="upload-area" id="artworkDropZone" style="padding:20px">
@@ -1068,10 +1080,12 @@ const Pages = (() => {
                 <input type="file" name="artwork" id="artworkFileInput" accept="image/*" style="display:none"/>
               </div>
             </div>
+
             <div class="form-group">
               <label>Lyrics (optional)</label>
               <textarea name="lyrics" rows="5" placeholder="Paste song lyrics here..."></textarea>
             </div>
+
             <div style="display:flex;gap:20px;margin-bottom:20px">
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-secondary)">
                 <input type="checkbox" name="is_downloadable" value="true"/> Allow downloads
@@ -1080,40 +1094,36 @@ const Pages = (() => {
                 <input type="checkbox" name="is_premium" value="true"/> Premium only
               </label>
             </div>
+
             <div id="uploadMsg" class="hidden"></div>
-            <button type="submit" class="btn btn-primary"><span><i class="fas fa-upload"></i> Upload Song</span><i class="fas fa-spinner fa-spin hidden"></i></button>
+            <button type="submit" class="btn btn-primary">
+              <span><i class="fas fa-upload"></i> Upload Song</span>
+              <i class="fas fa-spinner fa-spin hidden"></i>
+            </button>
           </form>
 
           <div style="margin-top:40px;padding-top:32px;border-top:1px solid var(--border)">
             <h3 style="margin-bottom:16px;font-weight:700"><i class="fas fa-compact-disc"></i> Create New Album</h3>
             <form id="createAlbumForm" enctype="multipart/form-data">
-              <div class="form-group"><label>Album Title *</label><input type="text" name="title" placeholder="Album title" required/></div>
-              <div class="form-group"><label>Description</label><textarea name="description" rows="2" placeholder="Album description..."></textarea></div>
+              <div class="form-group"><label>Album Title *</label>
+                <input type="text" name="title" placeholder="Album title" required/>
+              </div>
+              <div class="form-group"><label>Description</label>
+                <textarea name="description" rows="2" placeholder="Album description..."></textarea>
+              </div>
               <div class="form-group"><label>Genre</label>${genreSelect('genre_id')}</div>
-              <div class="form-group"><label>Release Date</label><input type="date" name="release_date"/></div>
-              <div class="form-group"><label>Album Artwork</label><input type="file" name="artwork" accept="image/*"/></div>
+              <div class="form-group"><label>Release Date</label>
+                <input type="date" name="release_date"/>
+              </div>
+              <div class="form-group"><label>Album Artwork</label>
+                <input type="file" name="artwork" accept="image/*"/>
+              </div>
               <div id="albumMsg" class="hidden"></div>
               <button type="submit" class="btn btn-outline"><i class="fas fa-plus"></i> Create Album</button>
             </form>
           </div>
         </div>
       </div>`;
-
-    // Region → Tribe cascade for song upload
-    document.getElementById('songRegionSelect')?.addEventListener('change', (e) => {
-      const regionId = parseInt(e.target.value);
-      const tribeWrap = document.getElementById('songTribeWrap');
-      const tribeSel  = document.getElementById('songTribeSelect');
-      tribeSel.innerHTML = '<option value="">Select tribe</option>';
-      if (!regionId) { tribeWrap.style.display = 'none'; return; }
-      const regionTribes = tribes.filter(t => t.region_id === regionId);
-      regionTribes.forEach(t => {
-        const opt = document.createElement('option');
-        opt.value = t.id; opt.textContent = t.name;
-        tribeSel.appendChild(opt);
-      });
-      tribeWrap.style.display = 'block';
-    });
 
     // Audio drop zone
     const audioZone = document.getElementById('audioDropZone');

@@ -113,29 +113,35 @@ router.post('/upload', authenticate, requireRole('artist'), (req, res, next) => 
   });
 }, async (req, res) => {
   try {
-    const { title, album_id, genre_id, region_id, tribe_id, lyrics, is_downloadable, is_premium, track_number } = req.body;
+    const { title, album_id, genre_id, lyrics, is_downloadable, is_premium, track_number } = req.body;
     if (!req.files?.audio?.[0]) return res.status(400).json({ error: 'Audio file required' });
     if (!title)                  return res.status(400).json({ error: 'Title required' });
 
-    // Cloudinary returns secure_url (full URL)
-    const filePath   = req.files.audio[0].path;           // full Cloudinary URL
-    const artworkPath= req.files?.artwork?.[0]?.path || null;
+    // ── Auto-inherit region & tribe from artist's profile ─────────
+    // The artist already declared their region/tribe on registration.
+    // Every song they upload is automatically grouped under those, regardless of song language.
+    const [apRows] = await pool.query(
+      'SELECT region_id, tribe_id FROM artist_profiles WHERE user_id = ?',
+      [req.user.id]
+    );
+    const artistRegionId = apRows[0]?.region_id || null;
+    const artistTribeId  = apRows[0]?.tribe_id  || null;
+
+    const filePath    = req.files.audio[0].path;
+    const artworkPath = req.files?.artwork?.[0]?.path || null;
     const uuid        = uuidv4();
-    const albumIdVal  = album_id   ? parseInt(album_id)   : null;
-    const genreIdVal  = genre_id   ? parseInt(genre_id)   : null;
-    const regionIdVal = region_id  ? parseInt(region_id)  : null;
-    const tribeIdVal  = tribe_id   ? parseInt(tribe_id)   : null;
+    const albumIdVal  = album_id    ? parseInt(album_id)    : null;
+    const genreIdVal  = genre_id    ? parseInt(genre_id)    : null;
     const trackNum    = track_number ? parseInt(track_number) : null;
     const downloadable = is_downloadable === 'true' ? 1 : 0;
-    const premium       = is_premium      === 'true' ? 1 : 0;
+    const premium      = is_premium      === 'true' ? 1 : 0;
 
-    // 14 columns, 13 placeholders (is_published is hardcoded TRUE) → 13 params required
     const [result] = await pool.query(
       `INSERT INTO songs
         (uuid,artist_id,album_id,title,file_path,artwork,genre_id,region_id,tribe_id,lyrics,is_downloadable,is_premium,is_published,track_number)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,TRUE,?)`,
       [uuid, req.user.id, albumIdVal, title, filePath, artworkPath,
-       genreIdVal, regionIdVal, tribeIdVal, lyrics || null, downloadable, premium, trackNum]
+       genreIdVal, artistRegionId, artistTribeId, lyrics || null, downloadable, premium, trackNum]
     );
     const newSongId = result.insertId;
 
